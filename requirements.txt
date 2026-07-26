@@ -2,3 +2,4 @@ pandas
 numpy
 pywin32
 pytest
+lightgbm>=4.7.0

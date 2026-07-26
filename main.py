@@ -11,6 +11,7 @@ from datetime import date, datetime
 
 from scripts.database import RaceRepository, StorageError
 from scripts.jvlink_loader import JVLinkError
+from scripts.train_model import ModelError
 
 DEFAULT_SID = "UNKNOWN"
 LOGGER = logging.getLogger(__name__)
@@ -110,6 +111,24 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "build-features",
         help="race_historyからAI学習用特徴量を生成します",
+    )
+    subparsers.add_parser(
+        "train-model",
+        help="LightGBMの1着・3着以内モデルを学習します",
+    )
+    prediction_parser = subparsers.add_parser(
+        "predict-model",
+        help="保存済みLightGBMモデルで確率を予測します",
+    )
+    prediction_parser.add_argument(
+        "--race",
+        required=True,
+        metavar="RACE_KEY",
+    )
+    prediction_parser.add_argument(
+        "--model",
+        choices=("winner", "place"),
+        default="winner",
     )
     return parser
 
@@ -264,6 +283,47 @@ def run_build_features() -> int:
     return 0
 
 
+def run_train_model() -> int:
+    """Train both LightGBM targets and display holdout metrics."""
+    from scripts.train_model import LightGBMTrainingEngine
+
+    reports = LightGBMTrainingEngine().train_all()
+    for report in reports:
+        metrics = report.metrics
+        roc_auc = f"{metrics.roc_auc:.6f}" if metrics.roc_auc is not None else "N/A"
+        print(f"[{report.model_kind}]")
+        print(
+            f"train={report.train_count} validation={report.validation_count} "
+            f"validation_start={report.validation_start}"
+        )
+        print(
+            f"Accuracy={metrics.accuracy:.6f} "
+            f"Precision={metrics.precision:.6f} Recall={metrics.recall:.6f}"
+        )
+        print(
+            f"F1={metrics.f1:.6f} ROC-AUC={roc_auc} "
+            f"LogLoss={metrics.log_loss:.6f}"
+        )
+        print(f"model={report.model_path}")
+        print(f"importance={report.importance_path}")
+    return 0
+
+
+def run_predict_model(race_key: str, model_kind: str) -> int:
+    """Display sorted probabilities for one feature_history race."""
+    from scripts.predict_model import RacePredictor
+
+    predictions = RacePredictor().predict(race_key, model_kind)
+    label = "1着確率" if model_kind == "winner" else "3着以内確率"
+    print(f"{race_key} {label}")
+    for prediction in predictions:
+        print(
+            f"{prediction.horse_no:>2} {prediction.horse_name:<18} "
+            f"{prediction.probability:.2%}"
+        )
+    return 0
+
+
 def run_timed(action: Callable[[], int]) -> int:
     """Run one CLI action and log its elapsed time."""
     started_at = time.perf_counter()
@@ -295,7 +355,13 @@ def main() -> int:
             )
         if args.command == "build-features":
             return run_timed(run_build_features)
-    except (JVLinkError, StorageError, ValueError) as exc:
+        if args.command == "train-model":
+            return run_timed(run_train_model)
+        if args.command == "predict-model":
+            return run_timed(
+                lambda: run_predict_model(args.race, args.model)
+            )
+    except (JVLinkError, ModelError, StorageError, ValueError) as exc:
         LOGGER.error("エラー件数: 1")
         LOGGER.error("処理失敗: %s", exc)
         print(f"エラー: {exc}")

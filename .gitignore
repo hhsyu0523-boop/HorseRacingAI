@@ -2,4 +2,7 @@ scripts/__pycache__/jvlink_loader.cpython-313.pyc
 __pycache__/
 *.py[cod]
 database/*.db
+models/*.pkl
+models/*.csv
+models/*.tmp
 .vscode/settings.json

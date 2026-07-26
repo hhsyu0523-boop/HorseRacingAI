@@ -144,3 +144,78 @@ INFO __main__: 特徴量保存件数: 9876
 INFO __main__: 処理時間: 0.321秒
 特徴量生成完了: 履歴=9876 保存=9876
 ```
+
+## Phase 4 Step 2
+
+`feature_history`を日付順にtrain / validationへ分割し、LightGBMで
+「1着」と「3着以内」の2種類の二値分類モデルを学習します。
+
+### 32bit環境へのインストール
+
+LightGBMの通常のWindows wheelは64bit用です。32bitの`.venv32`では、
+Visual Studio Build Toolsの「C++によるデスクトップ開発」とCMakeを用意し、
+LightGBMをWin32向けにソースビルドします。ARM64 Pythonにはインストールしません。
+
+```powershell
+.\.venv32\Scripts\python.exe -m pip install --upgrade pip cmake
+.\.venv32\Scripts\python.exe -m pip install -r requirements.txt `
+    --no-binary=lightgbm --config-settings=cmake.args="-AWin32"
+```
+
+インストール確認:
+
+```powershell
+.\.venv32\Scripts\python.exe -c "import lightgbm; print(lightgbm.__version__)"
+```
+
+### 学習
+
+```powershell
+py -3.13-32 main.py train-model
+```
+
+または:
+
+```powershell
+.\.venv32\Scripts\python.exe main.py train-model
+```
+
+日時が新しい20%の日付をvalidationとして使用します。同じ開催日のデータが
+trainとvalidationに分かれることはありません。評価結果としてAccuracy、
+Precision、Recall、F1、ROC-AUC、LogLossを表示します。
+
+生成物:
+
+- `models/winner_model.pkl`: 1着確率モデル
+- `models/place_model.pkl`: 3着以内確率モデル
+- `models/winner_feature_importance.csv`: 1着モデルの重要特徴量上位50件
+- `models/place_feature_importance.csv`: 3着以内モデルの重要特徴量上位50件
+
+### 予測
+
+`feature_history`に存在するレースについて確率を降順表示します。
+
+```powershell
+py -3.13-32 main.py predict-model --race 202607260101 --model winner
+py -3.13-32 main.py predict-model --race 202607260101 --model place
+```
+
+予測モジュールを直接実行することもできます。
+
+```powershell
+.\.venv32\Scripts\python.exe -m scripts.predict_model `
+    --race 202607260101 --model winner
+```
+
+### 学習結果例
+
+```text
+[winner]
+train=8000 validation=2000 validation_start=2026-03-01
+Accuracy=0.912000 Precision=0.481000 Recall=0.376000
+F1=0.422000 ROC-AUC=0.781000 LogLoss=0.264000
+model=models\winner_model.pkl
+importance=models\winner_feature_importance.csv
+```
+
+評価値は保存されている履歴と分割期間によって変わります。
