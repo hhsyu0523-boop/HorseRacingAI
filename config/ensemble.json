@@ -1,0 +1,14 @@
+{
+  "winner": {
+    "lightgbm": 0.5,
+    "xgboost": 0.5
+  },
+  "place": {
+    "lightgbm": 0.5,
+    "xgboost": 0.5
+  },
+  "ai_score": {
+    "winner": 0.6,
+    "place": 0.4
+  }
+}

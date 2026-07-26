@@ -148,6 +148,15 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("winner", "place"),
         default="winner",
     )
+    ensemble_parser = subparsers.add_parser(
+        "predict-race",
+        help="LightGBMとXGBoostのアンサンブル予測を実行します",
+    )
+    ensemble_parser.add_argument(
+        "--race",
+        required=True,
+        metavar="RACE_KEY",
+    )
     return parser
 
 
@@ -383,6 +392,27 @@ def run_predict_xgboost(race_key: str, model_kind: str) -> int:
     return 0
 
 
+def run_predict_race(race_key: str) -> int:
+    """Display and save final ensemble predictions for one race."""
+    from scripts.ensemble_predict import EnsemblePredictionEngine
+
+    result = EnsemblePredictionEngine().predict(race_key)
+    print(f"{race_key} Ensemble Prediction")
+    print("順位 馬番 馬名               勝率    複勝率  AI Score Confidence")
+    for prediction in result.predictions:
+        print(
+            f"{prediction.rank:>4} {prediction.horse_no:>4} "
+            f"{prediction.horse_name:<18} "
+            f"{prediction.win_probability:>7.2%} "
+            f"{prediction.place_probability:>7.2%} "
+            f"{prediction.ai_score:>8.2f} "
+            f"{prediction.confidence:>10.2f}"
+        )
+    LOGGER.info("予測履歴保存件数: %d", result.saved_count)
+    LOGGER.info("予測実行ID: %s", result.prediction_run_id)
+    return 0
+
+
 def run_timed(action: Callable[[], int]) -> int:
     """Run one CLI action and log its elapsed time."""
     started_at = time.perf_counter()
@@ -426,6 +456,8 @@ def main() -> int:
             return run_timed(
                 lambda: run_predict_xgboost(args.race, args.model)
             )
+        if args.command == "predict-race":
+            return run_timed(lambda: run_predict_race(args.race))
     except (JVLinkError, ModelError, StorageError, ValueError) as exc:
         LOGGER.error("エラー件数: 1")
         LOGGER.error("処理失敗: %s", exc)

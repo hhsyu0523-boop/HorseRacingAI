@@ -284,3 +284,53 @@ F1=0.430000 ROC-AUC=0.789000 LogLoss=0.259000
 model=models\winner_xgb.pkl
 importance=models\importance_xgb.csv
 ```
+
+## Phase 4 Step 4
+
+LightGBMとXGBoostのwinner/placeモデルを読み込み、最終予測を生成します。
+初期設定ではwinner、placeともにLightGBM 50%、XGBoost 50%です。
+
+### 実行コマンド
+
+```powershell
+py -3.13-32 main.py predict-race --race 202607260101
+```
+
+または:
+
+```powershell
+.\.venv32\Scripts\python.exe main.py predict-race --race 202607260101
+```
+
+出力項目:
+
+- 勝率: winnerモデル2種類の重み付き平均
+- 複勝率: placeモデル2種類の重み付き平均
+- 順位: AI Scoreの降順
+- AI Score: 勝率60%、複勝率40%の合成スコア
+- Confidence: LightGBMとXGBoostの予測一致度
+
+予測結果は実行ごとに一意のIDを付け、`race_prediction`テーブルへ
+履歴として保存します。
+
+### 重み設定
+
+`config/ensemble.json`を編集すると、モデルとAI Scoreの重みを変更できます。
+各グループの値は実行時に合計1.0となるよう自動的に正規化されます。
+
+```json
+{
+  "winner": {"lightgbm": 0.5, "xgboost": 0.5},
+  "place": {"lightgbm": 0.5, "xgboost": 0.5},
+  "ai_score": {"winner": 0.6, "place": 0.4}
+}
+```
+
+### 出力例
+
+```text
+202607260101 Ensemble Prediction
+順位 馬番 馬名               勝率    複勝率  AI Score Confidence
+   1    3 サンプルホース       31.20%  68.40%    46.08      94.50
+   2    7 テストホース         24.10%  57.80%    37.58      91.20
+```
