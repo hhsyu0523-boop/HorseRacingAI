@@ -3,3 +3,4 @@ numpy
 pywin32
 pytest
 lightgbm>=4.7.0
+xgboost>=3.3.0

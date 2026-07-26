@@ -158,7 +158,8 @@ LightGBMをWin32向けにソースビルドします。ARM64 Pythonにはイン�
 
 ```powershell
 .\.venv32\Scripts\python.exe -m pip install --upgrade pip cmake
-.\.venv32\Scripts\python.exe -m pip install -r requirements.txt `
+.\.venv32\Scripts\python.exe -m pip install pandas numpy pywin32 pytest
+.\.venv32\Scripts\python.exe -m pip install "lightgbm>=4.7.0" `
     --no-binary=lightgbm --config-settings=cmake.args="-AWin32"
 ```
 
@@ -219,3 +220,67 @@ importance=models\winner_feature_importance.csv
 ```
 
 評価値は保存されている履歴と分割期間によって変わります。
+
+## Phase 4 Step 3
+
+`feature_history`をLightGBMと同じ日時境界で分割し、XGBoostによる
+1着モデルと3着以内モデルを学習します。特徴量の並びとカテゴリ変換も
+LightGBM版と共通化しているため、後続のアンサンブルで確率を結合できます。
+
+### 32bit環境について
+
+XGBoost公式のWindows wheelはx86-64版のみで、32bit Python用wheelは
+公開されていません。`.venv32`で実行するには、XGBoost本体とPython packageを
+Win32向けにソースビルドした独自wheelが必要です。ARM64 Pythonへは
+インストールしません。
+
+独自Win32 wheelを用意した後のインストール例:
+
+```powershell
+.\.venv32\Scripts\python.exe -m pip install C:\path\to\xgboost_win32.whl
+.\.venv32\Scripts\python.exe -c "import xgboost; print(xgboost.__version__)"
+```
+
+### 学習
+
+```powershell
+py -3.13-32 main.py train-xgboost
+```
+
+または:
+
+```powershell
+.\.venv32\Scripts\python.exe main.py train-xgboost
+```
+
+Accuracy、Precision、Recall、F1、ROC-AUC、LogLossを表示し、
+以下を保存します。
+
+- `models/winner_xgb.pkl`: 1着確率モデル
+- `models/place_xgb.pkl`: 3着以内確率モデル
+- `models/importance_xgb.csv`: 両モデルの重要特徴量ランキング
+
+### 予測
+
+```powershell
+py -3.13-32 main.py predict-xgboost --race 202607260101 --model winner
+py -3.13-32 main.py predict-xgboost --race 202607260101 --model place
+```
+
+予測モジュールの直接実行:
+
+```powershell
+.\.venv32\Scripts\python.exe -m scripts.predict_xgboost `
+    --race 202607260101 --model winner
+```
+
+### 学習結果例
+
+```text
+[xgboost:winner]
+train=8000 validation=2000 validation_start=2026-03-01
+Accuracy=0.914000 Precision=0.493000 Recall=0.382000
+F1=0.430000 ROC-AUC=0.789000 LogLoss=0.259000
+model=models\winner_xgb.pkl
+importance=models\importance_xgb.csv
+```

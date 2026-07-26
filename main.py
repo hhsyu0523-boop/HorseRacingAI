@@ -130,6 +130,24 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("winner", "place"),
         default="winner",
     )
+    subparsers.add_parser(
+        "train-xgboost",
+        help="XGBoostの1着・3着以内モデルを学習します",
+    )
+    xgb_prediction_parser = subparsers.add_parser(
+        "predict-xgboost",
+        help="保存済みXGBoostモデルで確率を予測します",
+    )
+    xgb_prediction_parser.add_argument(
+        "--race",
+        required=True,
+        metavar="RACE_KEY",
+    )
+    xgb_prediction_parser.add_argument(
+        "--model",
+        choices=("winner", "place"),
+        default="winner",
+    )
     return parser
 
 
@@ -324,6 +342,47 @@ def run_predict_model(race_key: str, model_kind: str) -> int:
     return 0
 
 
+def run_train_xgboost() -> int:
+    """Train both XGBoost targets and display holdout metrics."""
+    from scripts.train_xgboost import XGBoostTrainingEngine
+
+    reports = XGBoostTrainingEngine().train_all()
+    for report in reports:
+        metrics = report.metrics
+        roc_auc = f"{metrics.roc_auc:.6f}" if metrics.roc_auc is not None else "N/A"
+        print(f"[xgboost:{report.model_kind}]")
+        print(
+            f"train={report.train_count} validation={report.validation_count} "
+            f"validation_start={report.validation_start}"
+        )
+        print(
+            f"Accuracy={metrics.accuracy:.6f} "
+            f"Precision={metrics.precision:.6f} Recall={metrics.recall:.6f}"
+        )
+        print(
+            f"F1={metrics.f1:.6f} ROC-AUC={roc_auc} "
+            f"LogLoss={metrics.log_loss:.6f}"
+        )
+        print(f"model={report.model_path}")
+    print(f"importance={reports[0].importance_path}")
+    return 0
+
+
+def run_predict_xgboost(race_key: str, model_kind: str) -> int:
+    """Display sorted XGBoost probabilities for one race."""
+    from scripts.predict_xgboost import XGBoostRacePredictor
+
+    predictions = XGBoostRacePredictor().predict(race_key, model_kind)
+    label = "1着確率" if model_kind == "winner" else "3着以内確率"
+    print(f"{race_key} XGBoost {label}")
+    for prediction in predictions:
+        print(
+            f"{prediction.horse_no:>2} {prediction.horse_name:<18} "
+            f"{prediction.probability:.2%}"
+        )
+    return 0
+
+
 def run_timed(action: Callable[[], int]) -> int:
     """Run one CLI action and log its elapsed time."""
     started_at = time.perf_counter()
@@ -360,6 +419,12 @@ def main() -> int:
         if args.command == "predict-model":
             return run_timed(
                 lambda: run_predict_model(args.race, args.model)
+            )
+        if args.command == "train-xgboost":
+            return run_timed(run_train_xgboost)
+        if args.command == "predict-xgboost":
+            return run_timed(
+                lambda: run_predict_xgboost(args.race, args.model)
             )
     except (JVLinkError, ModelError, StorageError, ValueError) as exc:
         LOGGER.error("エラー件数: 1")
