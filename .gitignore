@@ -1,2 +1,5 @@
 scripts/__pycache__/jvlink_loader.cpython-313.pyc
+__pycache__/
+*.py[cod]
+database/*.db
 .vscode/settings.json
