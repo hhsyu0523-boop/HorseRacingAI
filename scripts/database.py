@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import sqlite3
+from collections import defaultdict
 from collections.abc import Sequence
+from datetime import date, timedelta
 from pathlib import Path
 
-from scripts.jvlink_loader import RaceEntry, RaceList, RaceSchedule
+from scripts.jvlink_loader import (
+    RaceEntry,
+    RaceHistoryEntry,
+    RaceList,
+    RaceSchedule,
+)
 
 DEFAULT_DATABASE_PATH = (
     Path(__file__).resolve().parents[1] / "database" / "horse_racing.db"
@@ -72,6 +79,38 @@ class RaceRepository:
                         popularity INTEGER,
                         odds REAL,
                         PRIMARY KEY (race_key, horse_no)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS race_history (
+                        race_key TEXT NOT NULL,
+                        horse_no INTEGER NOT NULL,
+                        race_date TEXT NOT NULL,
+                        racecourse_code TEXT NOT NULL,
+                        racecourse TEXT NOT NULL,
+                        meeting_no INTEGER NOT NULL,
+                        day_no INTEGER NOT NULL,
+                        race_no INTEGER NOT NULL,
+                        race_name TEXT NOT NULL,
+                        distance INTEGER NOT NULL,
+                        surface TEXT NOT NULL,
+                        track_condition TEXT NOT NULL,
+                        weather TEXT NOT NULL,
+                        horse_name TEXT NOT NULL,
+                        jockey_name TEXT NOT NULL,
+                        popularity INTEGER,
+                        odds REAL,
+                        finish_position INTEGER NOT NULL,
+                        race_time TEXT NOT NULL,
+                        last_3f REAL,
+                        passing_order TEXT NOT NULL,
+                        body_weight INTEGER,
+                        assigned_weight REAL NOT NULL,
+                        PRIMARY KEY (race_key, horse_no)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS history_collection_progress (
+                        range_start TEXT PRIMARY KEY,
+                        completed_through TEXT NOT NULL
                     );
                     """
                 )
@@ -167,6 +206,110 @@ class RaceRepository:
                 odds=excluded.odds
             """,
             rows,
+        )
+
+    def history_resume_date(self, requested_from: date) -> date:
+        """Return the first uncompleted date for a collection range."""
+        self.initialize()
+        try:
+            with self._connect() as connection:
+                row = connection.execute(
+                    """
+                    SELECT completed_through
+                    FROM history_collection_progress
+                    WHERE range_start = ?
+                    """,
+                    (requested_from.isoformat(),),
+                ).fetchone()
+        except sqlite3.Error as exc:
+            raise StorageError(f"SQLite再開位置取得失敗: {exc}") from exc
+        if row is None:
+            return requested_from
+        return date.fromisoformat(str(row[0])) + timedelta(days=1)
+
+    def save_history(
+        self,
+        entries: Sequence[RaceHistoryEntry],
+        range_start: date,
+        completed_through: date,
+    ) -> int:
+        """Insert new history rows and checkpoint each completed race day."""
+        self.initialize()
+        entries_by_date: dict[date, list[RaceHistoryEntry]] = defaultdict(list)
+        for entry in entries:
+            entries_by_date[entry.date].append(entry)
+
+        saved_count = 0
+        try:
+            for race_date in sorted(entries_by_date):
+                with self._connect() as connection:
+                    before_changes = connection.total_changes
+                    connection.executemany(
+                        """
+                        INSERT OR IGNORE INTO race_history VALUES
+                            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                             ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        [
+                            self._history_row(entry)
+                            for entry in entries_by_date[race_date]
+                        ],
+                    )
+                    saved_count += connection.total_changes - before_changes
+                    self._save_history_progress(connection, range_start, race_date)
+
+            with self._connect() as connection:
+                self._save_history_progress(
+                    connection, range_start, completed_through
+                )
+        except sqlite3.Error as exc:
+            raise StorageError(f"SQLite履歴保存失敗: {exc}") from exc
+        return saved_count
+
+    @staticmethod
+    def _history_row(entry: RaceHistoryEntry) -> tuple[object, ...]:
+        return (
+            entry.race_key,
+            entry.horse_no,
+            entry.date.isoformat(),
+            entry.racecourse_code,
+            entry.racecourse,
+            entry.meeting_no,
+            entry.day_no,
+            entry.race_no,
+            entry.race_name,
+            entry.distance,
+            entry.surface,
+            entry.track_condition,
+            entry.weather,
+            entry.horse_name,
+            entry.jockey_name,
+            entry.popularity,
+            entry.odds,
+            entry.finish_position,
+            entry.race_time,
+            entry.last_3f,
+            entry.passing_order,
+            entry.body_weight,
+            entry.assigned_weight,
+        )
+
+    @staticmethod
+    def _save_history_progress(
+        connection: sqlite3.Connection, range_start: date, completed: date
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO history_collection_progress
+                (range_start, completed_through)
+            VALUES (?, ?)
+            ON CONFLICT(range_start) DO UPDATE SET
+                completed_through=MAX(
+                    history_collection_progress.completed_through,
+                    excluded.completed_through
+                )
+            """,
+            (range_start.isoformat(), completed.isoformat()),
         )
 
     def _save_many(self, statement: str, rows: Sequence[tuple[object, ...]]) -> int:

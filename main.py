@@ -82,6 +82,31 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="RACE_KEY",
         help="日付8桁＋競馬場コード2桁＋R番号2桁",
     )
+    history_parser = subparsers.add_parser(
+        "fetch-history",
+        help="指定期間の過去レース結果を取得してSQLiteへ保存します",
+    )
+    history_parser.add_argument(
+        "--sid",
+        default=os.getenv("JVLINK_SID", DEFAULT_SID),
+        help="JRA-VAN発行SID（未登録ソフトはUNKNOWN）",
+    )
+    history_parser.add_argument(
+        "--from",
+        dest="from_date",
+        type=parse_date,
+        required=True,
+        metavar="YYYYMMDD",
+        help="取得開始日",
+    )
+    history_parser.add_argument(
+        "--to",
+        dest="to_date",
+        type=parse_date,
+        required=True,
+        metavar="YYYYMMDD",
+        help="取得終了日",
+    )
     return parser
 
 
@@ -189,6 +214,38 @@ def run_race_entries(sid: str, race_key: str) -> int:
     return 0
 
 
+def run_fetch_history(sid: str, from_date: date, to_date: date) -> int:
+    """Fetch an inclusive historical range and persist new results."""
+    if from_date > to_date:
+        raise ValueError("開始日は終了日以前を指定してください")
+
+    from scripts.jvlink_loader import JVLinkClient
+
+    repository = RaceRepository()
+    resume_date = repository.history_resume_date(from_date)
+    if resume_date > to_date:
+        LOGGER.info("取得件数: 0")
+        LOGGER.info("保存件数: 0")
+        LOGGER.info("エラー件数: 0")
+        print(f"履歴収集済み: {from_date:%Y%m%d} - {to_date:%Y%m%d}")
+        return 0
+
+    if resume_date > from_date:
+        LOGGER.info("再開位置: %s", resume_date.strftime("%Y%m%d"))
+
+    result = JVLinkClient(sid=sid).get_race_history(resume_date, to_date)
+    LOGGER.info("取得件数: %d", len(result.entries))
+    saved_count = repository.save_history(result.entries, from_date, to_date)
+    LOGGER.info("保存件数: %d", saved_count)
+    LOGGER.info("エラー件数: %d", result.error_count)
+    print(
+        f"履歴収集完了: {resume_date:%Y%m%d} - {to_date:%Y%m%d} "
+        f"取得={len(result.entries)} 保存={saved_count} "
+        f"エラー={result.error_count}"
+    )
+    return 0
+
+
 def run_timed(action: Callable[[], int]) -> int:
     """Run one CLI action and log its elapsed time."""
     started_at = time.perf_counter()
@@ -214,7 +271,12 @@ def main() -> int:
             return run_timed(lambda: run_race_list(args.sid, args.date))
         if args.command == "race-entries":
             return run_timed(lambda: run_race_entries(args.sid, args.race))
+        if args.command == "fetch-history":
+            return run_timed(
+                lambda: run_fetch_history(args.sid, args.from_date, args.to_date)
+            )
     except (JVLinkError, StorageError, ValueError) as exc:
+        LOGGER.error("エラー件数: 1")
         LOGGER.error("処理失敗: %s", exc)
         print(f"エラー: {exc}")
         return 1

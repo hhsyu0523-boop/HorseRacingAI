@@ -58,3 +58,49 @@ py -3.13-32 main.py race-entries --race 202607260101
 ```
 
 実際の表示内容はJRA-VANから取得したデータにより異なります。
+
+## Phase 3 Step 3
+
+JV-Linkから指定期間の確定済みレース結果を取得し、
+`database/horse_racing.db` の `race_history` テーブルへ蓄積します。
+
+### 実装内容
+
+- `fetch-history --from YYYYMMDD --to YYYYMMDD` による期間指定取得
+- 開催日、競馬場、R、レース名、距離、馬場、天候、馬名、騎手、
+  人気、オッズ、着順、タイム、上がり3F、通過順位、馬体重、斤量の保存
+- レースキーと馬番を一意キーにした重複保存の防止
+- 開始日ごとの完了日を記録し、中断後は未処理日の先頭から再開
+- 取得件数、保存件数、処理時間、エラー件数のINFOログ出力
+
+### 実行例
+
+32bit Python 3.13を直接指定する場合:
+
+```powershell
+py -3.13-32 main.py fetch-history --from 20250101 --to 20260726
+```
+
+`.venv32`を使用する場合:
+
+```powershell
+.\.venv32\Scripts\python.exe main.py fetch-history --from 20250101 --to 20260726
+```
+
+同じ開始日で再実行すると、
+`history_collection_progress` に記録された完了日の翌日から再開します。
+
+### サンプル実行結果
+
+```text
+INFO scripts.jvlink_loader: 接続開始 (SID=UNKNOWN)
+INFO scripts.jvlink_loader: 接続成功
+INFO scripts.jvlink_loader: JVOpen成功 (dataspec=RACE, read=12345, download=0)
+INFO __main__: 取得件数: 9876
+INFO __main__: 保存件数: 9876
+INFO __main__: エラー件数: 0
+INFO __main__: 処理時間: 12.345秒
+履歴収集完了: 20250101 - 20260726 取得=9876 保存=9876 エラー=0
+```
+
+件数と処理時間は取得対象およびJRA-VANのデータ状況により異なります。

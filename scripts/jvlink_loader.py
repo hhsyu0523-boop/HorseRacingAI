@@ -85,6 +85,24 @@ CONDITION_NAMES = {
     "999": "オープン",
 }
 
+WEATHER_NAMES = {
+    "0": "不明",
+    "1": "晴",
+    "2": "曇",
+    "3": "雨",
+    "4": "小雨",
+    "5": "雪",
+    "6": "小雪",
+}
+
+TRACK_CONDITION_NAMES = {
+    "0": "不明",
+    "1": "良",
+    "2": "稍重",
+    "3": "重",
+    "4": "不良",
+}
+
 ERROR_MESSAGES = {
     -1: "該当データがありません",
     -2: "ダウンロード失敗",
@@ -234,6 +252,55 @@ class RaceEntry:
     odds: float | None
 
 
+@dataclass(frozen=True)
+class RaceHistoryEntry:
+    """One finalized horse result joined with its RA race details."""
+
+    date: date
+    race_key: str
+    racecourse_code: str
+    racecourse: str
+    meeting_no: int
+    day_no: int
+    race_no: int
+    race_name: str
+    distance: int
+    surface: str
+    track_condition: str
+    weather: str
+    horse_no: int
+    horse_name: str
+    jockey_name: str
+    popularity: int | None
+    odds: float | None
+    finish_position: int
+    race_time: str
+    last_3f: float | None
+    passing_order: str
+    body_weight: int | None
+    assigned_weight: float
+
+
+@dataclass(frozen=True)
+class HistoryFetchResult:
+    """Historical entries plus the number of malformed or unmatched records."""
+
+    entries: tuple[RaceHistoryEntry, ...]
+    error_count: int
+
+
+@dataclass(frozen=True)
+class _HistoricalHorse:
+    """SE result fields waiting to be joined to an RA record."""
+
+    entry: RaceEntry
+    finish_position: int
+    race_time: str
+    last_3f: float | None
+    passing_order: str
+    body_weight: int | None
+
+
 class JVLinkClient:
     """Lifecycle-safe facade for connection testing and accumulated data reads."""
 
@@ -312,8 +379,8 @@ class JVLinkClient:
 
         for data in self.fetch(
             DATA_SPEC_RACE,
-            f"{requested_date:%Y%m%d}000000",
-            option=ACCUMULATED_OPTION,
+            CURRENT_WEEK_FROM_TIME,
+            option=CURRENT_WEEK_OPTION,
         ):
             for record in data.splitlines():
                 if len(record) < 27 or record[:2] != RECORD_TYPE_RA:
@@ -371,8 +438,8 @@ class JVLinkClient:
 
         for data in self.fetch(
             DATA_SPEC_RACE,
-            CURRENT_WEEK_FROM_TIME,
-            option=CURRENT_WEEK_OPTION,
+            f"{requested_date:%Y%m%d}000000",
+            option=ACCUMULATED_OPTION,
         ):
             for record in data.split("\r\n"):
                 race = self._parse_ra_record(record)
@@ -421,6 +488,102 @@ class JVLinkClient:
             entries,
             key=lambda entry: entry.horse_no,
         )
+
+    def get_race_history(
+        self, from_date: date, to_date: date
+    ) -> HistoryFetchResult:
+        """Fetch finalized RA/SE records in an inclusive date range."""
+        if from_date > to_date:
+            raise ValueError("開始日は終了日以前を指定してください")
+
+        races: dict[str, tuple[RaceList, str, str]] = {}
+        horses: dict[tuple[str, int], _HistoricalHorse] = {}
+        error_count = 0
+
+        for data in self.fetch(
+            DATA_SPEC_RACE,
+            f"{from_date:%Y%m%d}000000",
+            option=ACCUMULATED_OPTION,
+        ):
+            for record in data.split("\r\n"):
+                raw = self._record_bytes(record)
+                if raw is None or len(raw) < 2:
+                    if record:
+                        error_count += 1
+                    continue
+
+                if raw[:2] == b"RA":
+                    race = self._parse_ra_record(record)
+                    if race is None:
+                        error_count += 1
+                        continue
+                    if not from_date <= race.date <= to_date:
+                        continue
+                    weather = WEATHER_NAMES.get(self._field(raw, 888, 1), "不明")
+                    condition_position = 889 if race.surface == "芝" else 890
+                    track_condition = TRACK_CONDITION_NAMES.get(
+                        self._field(raw, condition_position, 1), "不明"
+                    )
+                    races[race.race_key] = (race, weather, track_condition)
+                    continue
+
+                if raw[:2] != b"SE" or len(raw) < 394:
+                    continue
+                if raw[2:3] not in {b"5", b"6", b"7"}:
+                    continue
+                historical_horse = self._parse_historical_se(record, raw)
+                if historical_horse is None:
+                    error_count += 1
+                    continue
+                entry = historical_horse.entry
+                if from_date <= entry.date <= to_date:
+                    horses[(entry.race_key, entry.horse_no)] = historical_horse
+
+        history: list[RaceHistoryEntry] = []
+        for historical_horse in horses.values():
+            entry = historical_horse.entry
+            race_details = races.get(entry.race_key)
+            if race_details is None:
+                error_count += 1
+                continue
+            race, weather, track_condition = race_details
+            history.append(
+                RaceHistoryEntry(
+                    date=entry.date,
+                    race_key=entry.race_key,
+                    racecourse_code=entry.racecourse_code,
+                    racecourse=entry.racecourse,
+                    meeting_no=entry.meeting_no,
+                    day_no=entry.day_no,
+                    race_no=entry.race_no,
+                    race_name=race.race_name,
+                    distance=race.distance,
+                    surface=race.surface,
+                    track_condition=track_condition,
+                    weather=weather,
+                    horse_no=entry.horse_no,
+                    horse_name=entry.horse_name,
+                    jockey_name=entry.jockey_name,
+                    popularity=entry.popularity,
+                    odds=entry.odds,
+                    finish_position=historical_horse.finish_position,
+                    race_time=historical_horse.race_time,
+                    last_3f=historical_horse.last_3f,
+                    passing_order=historical_horse.passing_order,
+                    body_weight=historical_horse.body_weight,
+                    assigned_weight=entry.assigned_weight,
+                )
+            )
+
+        history.sort(
+            key=lambda item: (
+                item.date,
+                item.racecourse_code,
+                item.race_no,
+                item.horse_no,
+            )
+        )
+        return HistoryFetchResult(tuple(history), error_count)
 
     @staticmethod
     def parse_race_key(race_key: str) -> tuple[date, str, int]:
@@ -545,6 +708,60 @@ class JVLinkClient:
             popularity=popularity,
             odds=odds,
         )
+
+    @classmethod
+    def _parse_historical_se(
+        cls, record: str, raw: bytes
+    ) -> _HistoricalHorse | None:
+        """Parse finalized result-only fields from an SE record."""
+        if cls._field(raw, 3, 1) not in {"5", "6", "7"}:
+            return None
+        entry = cls._parse_se_record(record)
+        if entry is None or not 1 <= entry.horse_no <= 18:
+            return None
+
+        finish_position = cls._optional_int(cls._field(raw, 335, 2))
+        if finish_position is None or finish_position <= 0:
+            return None
+
+        time_value = cls._field(raw, 339, 4)
+        race_time = cls._format_race_time(time_value)
+        last_3f_value = cls._optional_int(cls._field(raw, 391, 3))
+        last_3f = (
+            last_3f_value / 10
+            if last_3f_value not in (None, 0, 999)
+            else None
+        )
+        passing_positions = [
+            cls._optional_int(cls._field(raw, position, 2))
+            for position in (352, 354, 356, 358)
+        ]
+        passing_order = "-".join(
+            str(position)
+            for position in passing_positions
+            if position not in (None, 0)
+        )
+        body_weight_value = cls._optional_int(cls._field(raw, 325, 3))
+        body_weight = (
+            body_weight_value
+            if body_weight_value not in (None, 0, 999)
+            else None
+        )
+        return _HistoricalHorse(
+            entry=entry,
+            finish_position=finish_position,
+            race_time=race_time,
+            last_3f=last_3f,
+            passing_order=passing_order,
+            body_weight=body_weight,
+        )
+
+    @staticmethod
+    def _format_race_time(value: str) -> str:
+        """Format JV's mssS race-time field as m:ss.S."""
+        if len(value) != 4 or not value.isdigit() or value in {"0000", "9999"}:
+            return ""
+        return f"{int(value[0])}:{value[1:3]}.{value[3]}"
 
     @staticmethod
     def _record_bytes(record: str) -> bytes | None:
