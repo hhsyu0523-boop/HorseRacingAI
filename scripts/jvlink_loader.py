@@ -66,6 +66,30 @@ TRACK_DETAILS = {
     "29": ("ダート", "直線"),
 }
 
+TRACK_LAYOUTS = {
+    "12": "外",
+    "13": "内",
+    "14": "外-内",
+    "15": "内-外",
+    "16": "外",
+    "18": "外",
+    "19": "内",
+    "20": "外-内",
+    "21": "内-外",
+    "22": "外",
+    "25": "内",
+    "26": "外",
+}
+
+GRADE_CLASSES = {
+    "A": "G1",
+    "B": "G2",
+    "C": "G3",
+    "F": "G1",
+    "G": "G2",
+    "H": "G3",
+}
+
 CONDITION_NAMES = {
     "000": "未設定",
     "001": "新馬",
@@ -226,7 +250,9 @@ class RaceList:
     distance: int
     surface: str
     direction: str
+    track_layout: str
     condition: str
+    race_class: str
     start_time: str
 
 
@@ -266,6 +292,9 @@ class RaceHistoryEntry:
     race_name: str
     distance: int
     surface: str
+    direction: str
+    track_layout: str
+    race_class: str
     track_condition: str
     weather: str
     horse_no: int
@@ -559,6 +588,9 @@ class JVLinkClient:
                     race_name=race.race_name,
                     distance=race.distance,
                     surface=race.surface,
+                    direction=race.direction,
+                    track_layout=race.track_layout,
+                    race_class=race.race_class,
                     track_condition=track_condition,
                     weather=weather,
                     horse_no=entry.horse_no,
@@ -629,6 +661,8 @@ class JVLinkClient:
         condition = CONDITION_NAMES.get(
             condition_code, f"条件コード{condition_code}"
         )
+        grade_code = text(615, 1)
+        race_class = GRADE_CLASSES.get(grade_code, condition)
         start_time_raw = text(874, 4)
         start_time = (
             f"{start_time_raw[:2]}:{start_time_raw[2:]}"
@@ -650,7 +684,9 @@ class JVLinkClient:
             distance=distance,
             surface=surface,
             direction=direction,
+            track_layout=TRACK_LAYOUTS.get(track_code, "なし"),
             condition=condition,
+            race_class=race_class,
             start_time=start_time,
         )
 

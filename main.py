@@ -107,6 +107,10 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="YYYYMMDD",
         help="取得終了日",
     )
+    subparsers.add_parser(
+        "build-features",
+        help="race_historyからAI学習用特徴量を生成します",
+    )
     return parser
 
 
@@ -246,6 +250,20 @@ def run_fetch_history(sid: str, from_date: date, to_date: date) -> int:
     return 0
 
 
+def run_build_features() -> int:
+    """Generate and save leakage-safe training features."""
+    from scripts.feature_engine import FeatureEngineeringEngine
+
+    result = FeatureEngineeringEngine().build()
+    LOGGER.info("履歴件数: %d", result.source_count)
+    LOGGER.info("特徴量保存件数: %d", result.saved_count)
+    print(
+        f"特徴量生成完了: 履歴={result.source_count} "
+        f"保存={result.saved_count}"
+    )
+    return 0
+
+
 def run_timed(action: Callable[[], int]) -> int:
     """Run one CLI action and log its elapsed time."""
     started_at = time.perf_counter()
@@ -275,6 +293,8 @@ def main() -> int:
             return run_timed(
                 lambda: run_fetch_history(args.sid, args.from_date, args.to_date)
             )
+        if args.command == "build-features":
+            return run_timed(run_build_features)
     except (JVLinkError, StorageError, ValueError) as exc:
         LOGGER.error("エラー件数: 1")
         LOGGER.error("処理失敗: %s", exc)

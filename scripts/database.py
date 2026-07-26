@@ -93,6 +93,9 @@ class RaceRepository:
                         race_name TEXT NOT NULL,
                         distance INTEGER NOT NULL,
                         surface TEXT NOT NULL,
+                        direction TEXT NOT NULL DEFAULT '不明',
+                        track_layout TEXT NOT NULL DEFAULT 'なし',
+                        race_class TEXT NOT NULL DEFAULT '未設定',
                         track_condition TEXT NOT NULL,
                         weather TEXT NOT NULL,
                         horse_name TEXT NOT NULL,
@@ -114,6 +117,7 @@ class RaceRepository:
                     );
                     """
                 )
+                self._ensure_history_columns(connection)
         except (OSError, sqlite3.Error) as exc:
             raise StorageError(f"SQLite初期化失敗: {exc}") from exc
 
@@ -246,9 +250,17 @@ class RaceRepository:
                     before_changes = connection.total_changes
                     connection.executemany(
                         """
-                        INSERT OR IGNORE INTO race_history VALUES
+                        INSERT OR IGNORE INTO race_history
+                            (race_key, horse_no, race_date, racecourse_code,
+                             racecourse, meeting_no, day_no, race_no,
+                             race_name, distance, surface, direction,
+                             track_layout, race_class, track_condition,
+                             weather, horse_name, jockey_name, popularity,
+                             odds, finish_position, race_time, last_3f,
+                             passing_order, body_weight, assigned_weight)
+                        VALUES
                             (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                             ?, ?, ?, ?, ?, ?, ?)
+                             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         [
                             self._history_row(entry)
@@ -280,6 +292,9 @@ class RaceRepository:
             entry.race_name,
             entry.distance,
             entry.surface,
+            entry.direction,
+            entry.track_layout,
+            entry.race_class,
             entry.track_condition,
             entry.weather,
             entry.horse_name,
@@ -293,6 +308,24 @@ class RaceRepository:
             entry.body_weight,
             entry.assigned_weight,
         )
+
+    @staticmethod
+    def _ensure_history_columns(connection: sqlite3.Connection) -> None:
+        """Add Phase 4 source columns to an existing Phase 3 database."""
+        columns = {
+            str(row[1])
+            for row in connection.execute("PRAGMA table_info(race_history)")
+        }
+        additions = {
+            "direction": "TEXT NOT NULL DEFAULT '不明'",
+            "track_layout": "TEXT NOT NULL DEFAULT 'なし'",
+            "race_class": "TEXT NOT NULL DEFAULT '未設定'",
+        }
+        for name, definition in additions.items():
+            if name not in columns:
+                connection.execute(
+                    f"ALTER TABLE race_history ADD COLUMN {name} {definition}"
+                )
 
     @staticmethod
     def _save_history_progress(
