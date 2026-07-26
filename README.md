@@ -390,3 +390,60 @@ Phase 5以降の`fetch-history`はJV-DataのHRレコードから単勝・複勝�
 
 レポートファイルはバックテストのたびに最新結果で更新され、SQLite履歴は
 一意の実行IDを付けて追記されます。
+
+## Phase 6
+
+LightGBMとXGBoostのアンサンブル結果を実戦向けに整形し、全出走馬の
+AIランキング、勝率、複勝率、AI Score、Confidenceを出力します。
+`race_entries`に単勝オッズが保存されている場合は、勝率と単勝オッズから
+`Expected Value = 勝率 × オッズ`を計算し、EVが1.0を超える馬を抽出します。
+
+### 事前準備と実行コマンド
+
+対象レースの出馬表・オッズと特徴量を保存した後に実行します。
+
+```powershell
+py -3.13-32 main.py race-entries --race 202607260101
+py -3.13-32 main.py build-features
+py -3.13-32 main.py predict-race --race 202607260101
+```
+
+`.venv32`を使用する場合:
+
+```powershell
+.\.venv32\Scripts\python.exe main.py predict-race --race 202607260101
+```
+
+### 推奨馬と買い目
+
+- AI Score順に全馬を順位付け
+- 上位馬へ `◎`、`○`、`▲`、`△`、EVのある下位馬へ `☆` を付与
+- EVが1.0を超える馬を `VALUE` として表示
+- 単勝、複勝、馬連、ワイド、馬単、三連複、三連単の買い目を生成
+
+複勝オッズは現在のJV-Link保存項目にないため、Phase 6のEVは単勝EVです。
+オッズ未取得の場合はEVを `-` と表示し、VALUE判定の対象外とします。
+買い目は予測候補であり、購入金額や資金配分は行いません。
+
+### 生成物
+
+- `reports/prediction.html`: ランキング、EV、推奨印、買い目
+- `reports/prediction.csv`: 全馬の予測値とVALUE判定
+- `prediction_history`: 実行ID単位の予測・EV・印・買い目履歴
+
+### サンプル実行結果
+
+```text
+202607260101 Prediction Engine
+順位 印 馬番 馬名               勝率     複勝率   オッズ    EV   AI Score Confidence
+   1 ◎     3 サンプルホース       31.20%  68.40%     3.5  1.092    46.08      94.50 VALUE
+   2 ○     7 テストホース         24.10%  57.80%     3.8  0.916    37.58      91.20
+買い目
+単勝 3
+複勝 3
+馬連 3-7
+CSV: reports\prediction.csv
+Report: reports\prediction.html
+```
+
+実際の順位・確率・オッズ・買い目は保存データと学習モデルにより変わります。

@@ -150,7 +150,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ensemble_parser = subparsers.add_parser(
         "predict-race",
-        help="LightGBMとXGBoostのアンサンブル予測を実行します",
+        help="AIランキング・期待値・推奨買い目を生成します",
     )
     ensemble_parser.add_argument(
         "--race",
@@ -456,6 +456,36 @@ def run_backtest(
     return 0
 
 
+def run_prediction(race_key: str) -> int:
+    """Generate, display, report, and save an actionable prediction."""
+    from scripts.prediction_engine import PredictionEngine
+
+    result = PredictionEngine().predict(race_key)
+    print(f"{race_key} Prediction Engine")
+    print("順位 印 馬番 馬名               勝率     複勝率   オッズ    EV   AI Score Confidence")
+    for row in result.predictions:
+        odds = f"{row.odds:.1f}" if row.odds is not None else "-"
+        expected_value = (
+            f"{row.expected_value:.3f}" if row.expected_value is not None else "-"
+        )
+        value_marker = " VALUE" if row.is_value else ""
+        print(
+            f"{row.rank:>4} {row.mark:<2} {row.horse_no:>4} "
+            f"{row.horse_name:<18} {row.win_probability:>7.2%} "
+            f"{row.place_probability:>7.2%} {odds:>7} "
+            f"{expected_value:>6} {row.ai_score:>8.2f} "
+            f"{row.confidence:>10.2f}{value_marker}"
+        )
+    print("買い目")
+    for bet in result.bets:
+        print(f"{bet.bet_type:<4} {bet.selection}")
+    print(f"CSV: {result.csv_path}")
+    print(f"Report: {result.html_path}")
+    LOGGER.info("予測履歴保存件数: %d", result.saved_count)
+    LOGGER.info("予測実行ID: %s", result.prediction_run_id)
+    return 0
+
+
 def run_timed(action: Callable[[], int]) -> int:
     """Run one CLI action and log its elapsed time."""
     started_at = time.perf_counter()
@@ -500,7 +530,7 @@ def main() -> int:
                 lambda: run_predict_xgboost(args.race, args.model)
             )
         if args.command == "predict-race":
-            return run_timed(lambda: run_predict_race(args.race))
+            return run_timed(lambda: run_prediction(args.race))
         if args.command == "backtest":
             return run_timed(
                 lambda: run_backtest(
