@@ -5,4 +5,6 @@ database/*.db
 models/*.pkl
 models/*.csv
 models/*.tmp
+reports/*.csv
+reports/*.html
 .vscode/settings.json

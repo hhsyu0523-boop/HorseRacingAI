@@ -308,6 +308,8 @@ class RaceHistoryEntry:
     passing_order: str
     body_weight: int | None
     assigned_weight: float
+    win_payout: int | None = None
+    place_payout: int | None = None
 
 
 @dataclass(frozen=True)
@@ -527,6 +529,7 @@ class JVLinkClient:
 
         races: dict[str, tuple[RaceList, str, str]] = {}
         horses: dict[tuple[str, int], _HistoricalHorse] = {}
+        payouts: dict[tuple[str, int], tuple[int | None, int | None]] = {}
         error_count = 0
 
         for data in self.fetch(
@@ -554,6 +557,10 @@ class JVLinkClient:
                         self._field(raw, condition_position, 1), "不明"
                     )
                     races[race.race_key] = (race, weather, track_condition)
+                    continue
+
+                if raw[:2] == b"HR":
+                    payouts.update(self._parse_hr_payouts(raw, from_date, to_date))
                     continue
 
                 if raw[:2] != b"SE" or len(raw) < 394:
@@ -604,6 +611,12 @@ class JVLinkClient:
                     passing_order=historical_horse.passing_order,
                     body_weight=historical_horse.body_weight,
                     assigned_weight=entry.assigned_weight,
+                    win_payout=payouts.get(
+                        (entry.race_key, entry.horse_no), (None, None)
+                    )[0],
+                    place_payout=payouts.get(
+                        (entry.race_key, entry.horse_no), (None, None)
+                    )[1],
                 )
             )
 
@@ -798,6 +811,40 @@ class JVLinkClient:
         if len(value) != 4 or not value.isdigit() or value in {"0000", "9999"}:
             return ""
         return f"{int(value[0])}:{value[1:3]}.{value[3]}"
+
+    @classmethod
+    def _parse_hr_payouts(
+        cls, raw: bytes, from_date: date, to_date: date
+    ) -> dict[tuple[str, int], tuple[int | None, int | None]]:
+        """Parse win/place payouts from one finalized HR record."""
+        if len(raw) < 207 or cls._field(raw, 3, 1) not in {"1", "2"}:
+            return {}
+        try:
+            race_date = date(
+                int(cls._field(raw, 12, 4)),
+                int(cls._field(raw, 16, 2)),
+                int(cls._field(raw, 18, 2)),
+            )
+            racecourse_code = cls._field(raw, 20, 2)
+            race_no = int(cls._field(raw, 26, 2))
+        except ValueError:
+            return {}
+        if not from_date <= race_date <= to_date:
+            return {}
+        race_key = f"{race_date:%Y%m%d}{racecourse_code}{race_no:02d}"
+        values: dict[int, list[int | None]] = {}
+        for start, repeats, index in ((103, 3, 0), (142, 5, 1)):
+            for offset in range(repeats):
+                position = start + offset * 13
+                horse_no = cls._optional_int(cls._field(raw, position, 2))
+                payout = cls._optional_int(cls._field(raw, position + 2, 9))
+                if horse_no in (None, 0) or payout in (None, 0):
+                    continue
+                values.setdefault(horse_no, [None, None])[index] = payout
+        return {
+            (race_key, horse_no): (payout[0], payout[1])
+            for horse_no, payout in values.items()
+        }
 
     @staticmethod
     def _record_bytes(record: str) -> bytes | None:

@@ -108,6 +108,8 @@ class RaceRepository:
                         passing_order TEXT NOT NULL,
                         body_weight INTEGER,
                         assigned_weight REAL NOT NULL,
+                        win_payout INTEGER,
+                        place_payout INTEGER,
                         PRIMARY KEY (race_key, horse_no)
                     );
 
@@ -229,6 +231,22 @@ class RaceRepository:
             raise StorageError(f"SQLite再開位置取得失敗: {exc}") from exc
         if row is None:
             return requested_from
+        try:
+            with self._connect() as connection:
+                missing_payout = connection.execute(
+                    """
+                    SELECT 1 FROM race_history
+                    WHERE race_date >= ?
+                      AND ((finish_position = 1 AND win_payout IS NULL)
+                           OR (finish_position <= 3 AND place_payout IS NULL))
+                    LIMIT 1
+                    """,
+                    (requested_from.isoformat(),),
+                ).fetchone()
+        except sqlite3.Error as exc:
+            raise StorageError(f"SQLite払戻確認失敗: {exc}") from exc
+        if missing_payout is not None:
+            return requested_from
         return date.fromisoformat(str(row[0])) + timedelta(days=1)
 
     def save_history(
@@ -257,10 +275,11 @@ class RaceRepository:
                              track_layout, race_class, track_condition,
                              weather, horse_name, jockey_name, popularity,
                              odds, finish_position, race_time, last_3f,
-                             passing_order, body_weight, assigned_weight)
+                             passing_order, body_weight, assigned_weight,
+                             win_payout, place_payout)
                         VALUES
                             (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         [
                             self._history_row(entry)
@@ -268,6 +287,23 @@ class RaceRepository:
                         ],
                     )
                     saved_count += connection.total_changes - before_changes
+                    connection.executemany(
+                        """
+                        UPDATE race_history
+                        SET win_payout=COALESCE(?, win_payout),
+                            place_payout=COALESCE(?, place_payout)
+                        WHERE race_key=? AND horse_no=?
+                        """,
+                        [
+                            (
+                                entry.win_payout,
+                                entry.place_payout,
+                                entry.race_key,
+                                entry.horse_no,
+                            )
+                            for entry in entries_by_date[race_date]
+                        ],
+                    )
                     self._save_history_progress(connection, range_start, race_date)
 
             with self._connect() as connection:
@@ -307,6 +343,8 @@ class RaceRepository:
             entry.passing_order,
             entry.body_weight,
             entry.assigned_weight,
+            entry.win_payout,
+            entry.place_payout,
         )
 
     @staticmethod
@@ -320,6 +358,8 @@ class RaceRepository:
             "direction": "TEXT NOT NULL DEFAULT '不明'",
             "track_layout": "TEXT NOT NULL DEFAULT 'なし'",
             "race_class": "TEXT NOT NULL DEFAULT '未設定'",
+            "win_payout": "INTEGER",
+            "place_payout": "INTEGER",
         }
         for name, definition in additions.items():
             if name not in columns:

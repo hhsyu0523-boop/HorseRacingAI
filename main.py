@@ -157,6 +157,28 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         metavar="RACE_KEY",
     )
+    backtest_parser = subparsers.add_parser(
+        "backtest",
+        help="拡張窓方式のローリングバックテストを実行します",
+    )
+    backtest_parser.add_argument(
+        "--from",
+        dest="from_date",
+        type=parse_date,
+        metavar="YYYYMMDD",
+    )
+    backtest_parser.add_argument(
+        "--to",
+        dest="to_date",
+        type=parse_date,
+        metavar="YYYYMMDD",
+    )
+    backtest_parser.add_argument(
+        "--min-training-races",
+        type=int,
+        default=20,
+        metavar="N",
+    )
     return parser
 
 
@@ -413,6 +435,27 @@ def run_predict_race(race_key: str) -> int:
     return 0
 
 
+def run_backtest(
+    from_date: date | None,
+    to_date: date | None,
+    min_training_races: int,
+) -> int:
+    """Execute rolling backtesting and display its overall summary."""
+    from scripts.backtest import RollingBacktestEngine
+
+    result = RollingBacktestEngine(
+        min_training_races=min_training_races
+    ).run(from_date, to_date)
+    print(f"Rolling Backtest: races={result.race_count} skipped={result.skipped_count}")
+    for name, value in result.summary.items():
+        print(f"{name}: {value:.2f}")
+    print(f"CSV: {result.csv_path}")
+    print(f"Report: {result.report_path}")
+    print(f"Feature Importance: {result.importance_path}")
+    LOGGER.info("バックテスト実行ID: %s", result.run_id)
+    return 0
+
+
 def run_timed(action: Callable[[], int]) -> int:
     """Run one CLI action and log its elapsed time."""
     started_at = time.perf_counter()
@@ -458,6 +501,14 @@ def main() -> int:
             )
         if args.command == "predict-race":
             return run_timed(lambda: run_predict_race(args.race))
+        if args.command == "backtest":
+            return run_timed(
+                lambda: run_backtest(
+                    args.from_date,
+                    args.to_date,
+                    args.min_training_races,
+                )
+            )
     except (JVLinkError, ModelError, StorageError, ValueError) as exc:
         LOGGER.error("エラー件数: 1")
         LOGGER.error("処理失敗: %s", exc)
