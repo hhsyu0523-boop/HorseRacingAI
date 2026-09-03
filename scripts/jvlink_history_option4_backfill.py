@@ -16,8 +16,14 @@ import argparse
 import json
 import shutil
 import sqlite3
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+# Allow direct execution as: python scripts/jvlink_history_option4_backfill.py
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import scripts.jvlink_loader as jl
 from scripts.database import DEFAULT_DATABASE_PATH, RaceRepository
