@@ -1,8 +1,8 @@
 """Evaluate already-trained 5-year models without rebuilding features or retraining.
 
-Uses the saved win/top3 model bundles and joins race_history explicitly for actual
-finish order, so evaluation does not depend on a particular local feature table's
-target-column naming.
+This evaluator is deliberately tolerant of the two model-bundle formats that have
+existed in the local HorseRacingAI tree. It joins race_history explicitly for the
+actual finish order and never rebuilds the 5-year history.
 """
 from __future__ import annotations
 
@@ -30,16 +30,6 @@ def now() -> str:
     return datetime.now(JST).isoformat(timespec="seconds")
 
 
-def load_bundle(path: Path) -> dict:
-    if not path.exists():
-        raise RuntimeError(f"model missing: {path}")
-    with path.open("rb") as f:
-        obj = pickle.load(f)
-    if not isinstance(obj, dict) or "booster" not in obj or "feature_names" not in obj:
-        raise RuntimeError(f"invalid model bundle: {path}")
-    return obj
-
-
 def find_models() -> tuple[Path, Path]:
     candidates = [
         (ROOT / "models" / "win_model.pkl", ROOT / "models" / "top3_model.pkl"),
@@ -49,6 +39,73 @@ def find_models() -> tuple[Path, Path]:
         if a.exists() and b.exists():
             return a, b
     raise RuntimeError("trained win/top3 model pair not found")
+
+
+def load_bundle(path: Path) -> dict:
+    if not path.exists():
+        raise RuntimeError(f"model missing: {path}")
+    with path.open("rb") as f:
+        obj = pickle.load(f)
+
+    # Historical local builds used both dict bundles and direct estimator pickles.
+    if isinstance(obj, dict):
+        model = None
+        for key in ("booster", "model", "estimator", "classifier"):
+            if key in obj and obj[key] is not None:
+                model = obj[key]
+                break
+        if model is None:
+            raise RuntimeError(f"model object missing in bundle: {path}; keys={sorted(obj.keys())}")
+
+        feature_names = None
+        for key in ("feature_names", "features", "feature_columns", "columns"):
+            value = obj.get(key)
+            if value:
+                feature_names = list(value)
+                break
+        if feature_names is None:
+            if hasattr(model, "feature_name"):
+                try:
+                    feature_names = list(model.feature_name())
+                except Exception:
+                    feature_names = None
+            if feature_names is None and hasattr(model, "feature_names_in_"):
+                feature_names = [str(x) for x in model.feature_names_in_]
+        if not feature_names:
+            raise RuntimeError(f"feature names missing in bundle: {path}; keys={sorted(obj.keys())}")
+
+        validation_start = (
+            obj.get("validation_start")
+            or obj.get("holdout_start")
+            or obj.get("validation_start_date")
+        )
+        return {
+            "model": model,
+            "feature_names": feature_names,
+            "category_maps": dict(obj.get("category_maps", {})),
+            "validation_start": validation_start,
+            "raw_keys": sorted(obj.keys()),
+        }
+
+    # A direct sklearn/lightgbm estimator is also accepted if it carries feature names.
+    model = obj
+    feature_names = None
+    if hasattr(model, "feature_name"):
+        try:
+            feature_names = list(model.feature_name())
+        except Exception:
+            feature_names = None
+    if feature_names is None and hasattr(model, "feature_names_in_"):
+        feature_names = [str(x) for x in model.feature_names_in_]
+    if not feature_names:
+        raise RuntimeError(f"unsupported direct model pickle: {path}; type={type(model).__name__}")
+    return {
+        "model": model,
+        "feature_names": feature_names,
+        "category_maps": {},
+        "validation_start": None,
+        "raw_keys": [],
+    }
 
 
 def transform(rows: list[sqlite3.Row], bundle: dict) -> list[list[float]]:
@@ -71,6 +128,17 @@ def transform(rows: list[sqlite3.Row], bundle: dict) -> list[list[float]]:
     return matrix
 
 
+def predict_probabilities(bundle: dict, matrix: list[list[float]]) -> list[float]:
+    model = bundle["model"]
+    if hasattr(model, "predict_proba"):
+        values = model.predict_proba(matrix)
+        return [float(row[1]) for row in values]
+    if hasattr(model, "predict"):
+        values = model.predict(matrix)
+        return [float(x) for x in values]
+    raise RuntimeError(f"model has no prediction method: {type(model).__name__}")
+
+
 def load_rows(validation_start: str) -> list[sqlite3.Row]:
     with sqlite3.connect(DEFAULT_DATABASE_PATH) as con:
         con.row_factory = sqlite3.Row
@@ -89,21 +157,41 @@ def load_rows(validation_start: str) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def fallback_validation_start() -> str:
+    # The successful 5-year training run shown locally used this chronological holdout.
+    # If an older bundle omitted the field, derive the same 20% day-based split from
+    # feature_history rather than retraining.
+    with sqlite3.connect(DEFAULT_DATABASE_PATH) as con:
+        dates = [
+            str(r[0])
+            for r in con.execute(
+                "SELECT DISTINCT race_date FROM feature_history ORDER BY race_date"
+            )
+        ]
+    if len(dates) < 2:
+        raise RuntimeError("cannot derive validation_start")
+    import math
+    validation_days = max(1, math.ceil(len(dates) * 0.2))
+    return dates[len(dates) - validation_days]
+
+
 def main() -> int:
     report = {"status": "RUNNING", "started_at_jst": now()}
     try:
         win_path, top3_path = find_models()
         win = load_bundle(win_path)
         top3 = load_bundle(top3_path)
-        validation_start = str(win.get("validation_start") or top3.get("validation_start") or "")
-        if not validation_start:
-            raise RuntimeError("validation_start missing from model bundle")
+        validation_start = str(
+            win.get("validation_start")
+            or top3.get("validation_start")
+            or fallback_validation_start()
+        )
         rows = load_rows(validation_start)
         if not rows:
             raise RuntimeError("validation rows are empty")
 
-        win_p = [float(x) for x in win["booster"].predict(transform(rows, win))]
-        top3_p = [float(x) for x in top3["booster"].predict(transform(rows, top3))]
+        win_p = predict_probabilities(win, transform(rows, win))
+        top3_p = predict_probabilities(top3, transform(rows, top3))
 
         grouped = defaultdict(list)
         for row, wp, tp in zip(rows, win_p, top3_p):
@@ -129,6 +217,7 @@ def main() -> int:
 
         if races == 0:
             raise RuntimeError("no evaluable races")
+
         metrics = {
             "validation_start": validation_start,
             "validation_races": races,
