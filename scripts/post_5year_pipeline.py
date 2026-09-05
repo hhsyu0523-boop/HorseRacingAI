@@ -88,9 +88,11 @@ def load_validation_rows(validation_start: str):
         ).fetchall()
 
 
-def race_level_metrics(validation_start: str) -> dict:
-    winner = load_model_bundle(ROOT / "models" / "winner_model.pkl")
-    place = load_model_bundle(ROOT / "models" / "place_model.pkl")
+def race_level_metrics(validation_start: str, winner_model_path: Path, top3_model_path: Path) -> dict:
+    # Use the exact paths returned by the training engine. This avoids assuming
+    # fixed filenames (local branches may call the targets winner/place or win/top3).
+    winner = load_model_bundle(Path(winner_model_path))
+    place = load_model_bundle(Path(top3_model_path))
     rows = load_validation_rows(validation_start)
     if not rows:
         raise RuntimeError("validation rows are empty")
@@ -203,11 +205,16 @@ def main() -> int:
                 "f1": r.metrics.f1,
                 "roc_auc": r.metrics.roc_auc,
                 "log_loss": r.metrics.log_loss,
+                "model_path": str(r.model_path),
             }
             for r in reports
         }
         validation_start = reports[0].validation_start
-        report["race_level_holdout"] = race_level_metrics(validation_start)
+        report["race_level_holdout"] = race_level_metrics(
+            validation_start,
+            reports[0].model_path,
+            reports[1].model_path,
+        )
         report["status"] = "SUCCESS"
         report["finished_at_jst"] = now()
         write_report(report)
