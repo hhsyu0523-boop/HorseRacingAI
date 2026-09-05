@@ -14,6 +14,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -82,11 +84,13 @@ def matrix(rows, features, maps):
             else:
                 vals.append(float(v) if v is not None else 0.0)
         out.append(vals)
-    return out
+    return np.asarray(out, dtype=np.float32)
 
 
 def train_model(x_train, y_train, x_val, y_val, features):
     import lightgbm as lgb
+    y_train = np.asarray(y_train, dtype=np.int8)
+    y_val = np.asarray(y_val, dtype=np.int8)
     ds=lgb.Dataset(x_train,label=y_train,feature_name=features,free_raw_data=False)
     vs=lgb.Dataset(x_val,label=y_val,reference=ds,feature_name=features,free_raw_data=False)
     model=lgb.train(
