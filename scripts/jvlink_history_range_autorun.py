@@ -1,4 +1,4 @@
-"""Historical backfill using JV-Link setup date ranges with -402 recovery."""
+"""Historical backfill using JV-Link setup date ranges with -402/-403 recovery."""
 from __future__ import annotations
 
 import sys
@@ -30,8 +30,33 @@ class RangeJVLinkClient(base.jl.JVLinkClient):
         self._opened = True
         return base.jl.OpenResult(read_count, download_count, timestamp)
 
+    def _delete_corrupt_file(self, filename: str) -> bool:
+        name = Path(filename).name if filename else ""
+        if not name:
+            return False
+        # Official recovery path is JVFiledelete when available.
+        adapter = self._adapter
+        com = getattr(adapter, "_com", None)
+        if com is not None and hasattr(com, "JVFiledelete"):
+            try:
+                result = int(com.JVFiledelete(name))
+                if result == 0:
+                    return True
+            except Exception:
+                pass
+        # Fallback for environments where JVFiledelete is inaccessible via late binding.
+        for root in (
+            Path(r"C:\ProgramData\JRA-VAN\Data Lab\data"),
+            Path(r"C:\Program Files (x86)\JRA-VAN\Data Lab\data"),
+        ):
+            target = root / name
+            if target.exists():
+                target.unlink()
+                return True
+        return False
+
     def iter_records(self):
-        """Read setup data; delete a corrupt -402 JVD and reopen so JV-Link redownloads it."""
+        """Read setup data and recover corrupt JVD files reported as -402/-403."""
         if not self._opened or self._adapter is None:
             raise base.jl.JVLinkError("JVRead", -111, "open required")
         prepare_retries = 0
@@ -52,22 +77,12 @@ class RangeJVLinkClient(base.jl.JVLinkClient):
                     raise base.jl.JVLinkError("JVRead", code, "data preparation timed out")
                 time.sleep(self.retry_interval)
                 continue
-            if code == -402:
+            if code in (-402, -403):
                 corrupt_recoveries += 1
-                if corrupt_recoveries > 20:
+                if corrupt_recoveries > 50:
                     raise base.jl.JVLinkError("JVRead", code, "too many corrupt-file recoveries")
-                name = Path(filename).name if filename else ""
-                deleted = False
-                if name:
-                    for root in (Path(r"C:\ProgramData\JRA-VAN\Data Lab\data"), Path(r"C:\Program Files (x86)\JRA-VAN\Data Lab\data")):
-                        target = root / name
-                        if target.exists():
-                            target.unlink()
-                            deleted = True
-                            break
-                if not deleted:
-                    raise base.jl.JVLinkError("JVRead", code, f"corrupt file not found: {filename}")
-                # Close/reopen the same setup range. Missing JVD is downloaded again.
+                if not self._delete_corrupt_file(filename):
+                    raise base.jl.JVLinkError("JVRead", code, f"corrupt file could not be deleted: {filename}")
                 self.close()
                 time.sleep(0.5)
                 self.open_range(base.jl.DATA_SPEC_RACE, option=4)
