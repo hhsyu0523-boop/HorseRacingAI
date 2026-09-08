@@ -1,0 +1,13 @@
+name: GitHub Actions Probe
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe
+        run: echo "GitHub Actions is enabled and running"
