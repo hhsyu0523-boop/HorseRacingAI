@@ -1,1 +1,1 @@
-﻿FAILED 2026-09-09T07:52:12.6908998+09:00 step=automation error=git add failed
+﻿RUNNING 2026-09-09T07:54:20.0894835+09:00 step=validation isolated_worktree=C:\Users\HidekazuHasegawa\AppData\Local\HorseRacingAI_AutomationWorktree_20260909_075419
