@@ -4,6 +4,7 @@ $root = (Resolve-Path $root).Path
 $git = (Get-Command git.exe -ErrorAction Stop).Source
 $py64 = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'
 $productionDb = Join-Path $root 'database\horse_racing.db'
+$modelDir = Join-Path $root 'models'
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $autoRoot = Join-Path $env:LOCALAPPDATA ("HorseRacingAI_AutomationWorktree_" + $stamp)
 $rootLogDir = Join-Path $root 'outputs\automation'
@@ -12,14 +13,8 @@ $rootStatus = Join-Path $rootLogDir 'LATEST_LOCAL_STATUS.txt'
 $rootLog = Join-Path $rootLogDir ("bootstrap_$stamp.log")
 $worktreeReady = $false
 
-function Root-Log([string]$text) {
-  $text | Tee-Object -FilePath $rootLog -Append
-}
+function Root-Log([string]$text) { $text | Tee-Object -FilePath $rootLog -Append }
 
-# Windows PowerShell can turn a native program's stderr into ErrorRecord objects.
-# Git writes normal progress (for example "From https://...") to stderr, so with
-# ErrorActionPreference=Stop a successful git command could abort the runner.
-# Native commands are therefore executed with Continue and judged only by exit code.
 function Invoke-Native([string]$exe, [string[]]$argv, [string]$cwd=$root, [string[]]$logFiles=@()) {
   Push-Location $cwd
   try {
@@ -48,8 +43,6 @@ function Invoke-Git([string[]]$argv, [string]$cwd=$root) {
 
 try {
   "RUNNING $(Get-Date -Format o) step=bootstrap" | Set-Content -Encoding UTF8 $rootStatus
-
-  # Never pull/rebase/stash/reset the user's research worktree.
   Invoke-Git @('fetch','origin','main') | Out-Null
   Invoke-Git @('worktree','prune') | Out-Null
   Invoke-Git @('worktree','add','--force','--detach',$autoRoot,'origin/main') | Out-Null
@@ -72,21 +65,12 @@ try {
     Log "[$(Get-Date -Format o)] OK $name"
   }
   function Publish([string]$message) {
-    # Automation status/logs always exist and must always be published.
     $stage=@('add','-f','outputs/automation/*.log','outputs/automation/LATEST_STATUS.txt')
-
-    # Baseline artifacts are optional. Do not pass unmatched pathspecs to git add,
-    # because git returns exit 128 when a wildcard matches no files.
     $baselineDir=Join-Path $autoRoot 'outputs\baseline'
     if (Test-Path $baselineDir) {
-      if (Get-ChildItem -Path $baselineDir -Filter '*.json' -File -ErrorAction SilentlyContinue | Select-Object -First 1) {
-        $stage += 'outputs/baseline/*.json'
-      }
-      if (Get-ChildItem -Path $baselineDir -Filter '*.txt' -File -ErrorAction SilentlyContinue | Select-Object -First 1) {
-        $stage += 'outputs/baseline/*.txt'
-      }
+      if (Get-ChildItem -Path $baselineDir -Filter '*.json' -File -ErrorAction SilentlyContinue | Select-Object -First 1) { $stage += 'outputs/baseline/*.json' }
+      if (Get-ChildItem -Path $baselineDir -Filter '*.txt' -File -ErrorAction SilentlyContinue | Select-Object -First 1) { $stage += 'outputs/baseline/*.txt' }
     }
-
     $r=Invoke-Native $git $stage $autoRoot @($log,$rootLog)
     if ($r.ExitCode -ne 0) { throw "git add failed exit=$($r.ExitCode)" }
     $r=Invoke-Native $git @('diff','--cached','--quiet') $autoRoot @($log,$rootLog)
@@ -107,10 +91,16 @@ try {
   "RUNNING $(Get-Date -Format o) step=validation" | Set-Content -Encoding UTF8 $rootStatus
   if (!(Test-Path $py64)) { throw "Python311 missing: $py64" }
   if (!(Test-Path $productionDb)) { throw "production DB missing: $productionDb" }
+  New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
 
   $env:HORSE_RACING_DB_PATH = $productionDb
+  $env:HORSE_RACING_MODEL_DIR = $modelDir
   Publish "HorseRacingAI automation running $stamp"
   Run-Step 'holdout_evaluation' $py64 @('scripts\evaluate_5year_featurehistory.py')
+  "RUNNING $(Get-Date -Format o) step=winner_strengthening" | Set-Content -Encoding UTF8 $status
+  "RUNNING $(Get-Date -Format o) step=winner_strengthening" | Set-Content -Encoding UTF8 $rootStatus
+  Publish "HorseRacingAI winner strengthening running $stamp"
+  Run-Step 'winner_strengthening' $py64 @('scripts\evaluate_winner_strengthening.py')
 
   "SUCCESS $(Get-Date -Format o) step=complete" | Set-Content -Encoding UTF8 $status
   "SUCCESS $(Get-Date -Format o) step=complete" | Set-Content -Encoding UTF8 $rootStatus
