@@ -32,6 +32,7 @@ jobs:
           now_jst="$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S %Z')"
           dow="$(TZ=Asia/Tokyo date +%u)" # Mon=1 ... Sun=7
           status_file="outputs/automation/LATEST_STATUS.txt"
+          max_running_seconds=$((3 * 60 * 60))
 
           # Most recent Sunday in JST. Before the Sunday 23:30 deadline, the required
           # successful run is still the previous Sunday; after the deadline it is today.
@@ -62,8 +63,25 @@ jobs:
             echo "state=FAILED" >> "$GITHUB_OUTPUT"
             echo "detail=$status" >> "$GITHUB_OUTPUT"
           elif grep -q '^RUNNING ' <<<"$status"; then
-            echo "state=RUNNING" >> "$GITHUB_OUTPUT"
-            echo "detail=$status" >> "$GITHUB_OUTPUT"
+            # RUNNING is only healthy while it is genuinely recent. A hung task must not
+            # hide the Sunday 23:30 missing-SUCCESS condition indefinitely.
+            ts="$(awk '{print $2}' <<<"$status")"
+            if running_epoch="$(date -d "$ts" +%s 2>/dev/null)"; then
+              running_age=$(( now_epoch - running_epoch ))
+            else
+              running_age=$(( max_running_seconds + 1 ))
+            fi
+
+            if (( running_age > max_running_seconds )); then
+              echo "state=STALE_RUNNING" >> "$GITHUB_OUTPUT"
+              echo "detail=RUNNING has not completed for ${running_age}s (limit ${max_running_seconds}s): $status" >> "$GITHUB_OUTPUT"
+            elif (( now_epoch >= deadline_epoch )) && grep -q "$latest_sunday" <<<"$status"; then
+              echo "state=MISSING_REQUIRED_SUCCESS" >> "$GITHUB_OUTPUT"
+              echo "detail=Sunday 23:30 deadline passed without SUCCESS; latest status is: $status" >> "$GITHUB_OUTPUT"
+            else
+              echo "state=RUNNING" >> "$GITHUB_OUTPUT"
+              echo "detail=$status" >> "$GITHUB_OUTPUT"
+            fi
           elif grep -q '^SUCCESS ' <<<"$status"; then
             if grep -q "$required_sunday" <<<"$status"; then
               echo "state=HEALTHY" >> "$GITHUB_OUTPUT"
@@ -96,7 +114,7 @@ jobs:
               `- State: ${process.env.STATE}`,
               `- Detail: ${process.env.DETAIL}`,
               '',
-              'The weekly job is expected at Sunday 20:30 JST and is considered abnormal if that Sunday has no SUCCESS by 23:30 JST.'
+              'The weekly job is expected at Sunday 20:30 JST and is considered abnormal if that Sunday has no SUCCESS by 23:30 JST. RUNNING is also abnormal if it remains unchanged for more than 3 hours.'
             ].join('\n');
 
             const { data: issues } = await github.rest.issues.listForRepo({
