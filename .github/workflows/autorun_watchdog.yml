@@ -1,6 +1,12 @@
 name: HorseRacingAI Autorun Watchdog
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/autorun_watchdog.yml'
+      - 'automation/**'
+      - 'outputs/automation/**'
   schedule:
     - cron: '35 14 * * 0'   # Sunday 23:35 JST
     - cron: '0 */6 * * *'   # periodic visibility check
