@@ -1,4 +1,22 @@
+param([switch]$Elevated)
+
 $ErrorActionPreference='Stop'
+
+# Register-ScheduledTask can require elevation, especially when replacing an
+# existing task created with higher privileges. Relaunch this recovery script
+# once with UAC instead of making the user manually open an Administrator shell.
+$identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+$principal=New-Object Security.Principal.WindowsPrincipal($identity)
+$isAdmin=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+  if ($Elevated) { throw 'Administrator elevation was requested but is not active.' }
+  Write-Host 'Administrator permission is required to repair HorseRacingAI-Auto.'
+  Write-Host 'A Windows UAC confirmation will open. Choose Yes.'
+  $args=@('-NoProfile','-ExecutionPolicy','Bypass','-File',('"' + $PSCommandPath + '"'),'-Elevated')
+  $p=Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $args -Wait -PassThru
+  exit $p.ExitCode
+}
+
 Set-Location (Split-Path -Parent $PSScriptRoot)
 $root=(Get-Location).Path
 $git=(Get-Command git.exe -ErrorAction Stop).Source
@@ -11,7 +29,7 @@ function Log([string]$text) {
 }
 
 try {
-  Log 'HorseRacingAI autorun recovery starting'
+  Log 'HorseRacingAI autorun recovery starting (elevated)'
 
   # Windows PowerShell can convert a native program's stderr into ErrorRecord objects.
   # With ErrorActionPreference=Stop, normal git progress such as "From https://..."
@@ -70,7 +88,7 @@ try {
       $status=(Get-Content $statusPath -Raw).Trim()
       Log ("LOCAL_STATUS: " + $status)
       Write-Host $status
-      Write-Host "RECOVERY_OK: task registered and runner produced local status"
+      Write-Host 'RECOVERY_OK: task registered and runner produced local status'
       exit 0
     }
     Start-Sleep -Seconds 2
