@@ -13,15 +13,29 @@ function Log([string]$text) {
 try {
   Log 'HorseRacingAI autorun recovery starting'
 
-  # Do not checkout/rebase/reset/stash the research worktree. It may contain
-  # legitimate uncommitted experiments. Refresh only the automation files needed
-  # for unattended execution, directly from origin/main, without touching the index.
-  & $git fetch origin main 2>&1 | Tee-Object -FilePath $bootstrapLog -Append
-  if ($LASTEXITCODE -ne 0) { throw 'git fetch failed' }
+  # Windows PowerShell can convert a native program's stderr into ErrorRecord objects.
+  # With ErrorActionPreference=Stop, normal git progress such as "From https://..."
+  # can therefore abort the recovery even when git exits successfully. Temporarily
+  # allow native stderr, then decide success strictly from git's exit code.
+  $savedErrorActionPreference=$ErrorActionPreference
+  $ErrorActionPreference='Continue'
+  $fetchOutput=@(& $git fetch origin main 2>&1)
+  $fetchExit=$LASTEXITCODE
+  $ErrorActionPreference=$savedErrorActionPreference
+  $fetchOutput | ForEach-Object { $_.ToString() } | Tee-Object -FilePath $bootstrapLog -Append
+  if ($fetchExit -ne 0) { throw "git fetch failed (exit=$fetchExit)" }
+  Log 'GIT_FETCH_OK'
 
   function Restore-FromOrigin([string]$repoPath,[string]$localPath) {
-    $text = & $git show "origin/main:$repoPath"
-    if ($LASTEXITCODE -ne 0) { throw "git show failed: $repoPath" }
+    $saved=$ErrorActionPreference
+    $ErrorActionPreference='Continue'
+    $text=@(& $git show "origin/main:$repoPath" 2>&1)
+    $showExit=$LASTEXITCODE
+    $ErrorActionPreference=$saved
+    if ($showExit -ne 0) {
+      $text | ForEach-Object { $_.ToString() } | Tee-Object -FilePath $bootstrapLog -Append | Out-Null
+      throw "git show failed: $repoPath (exit=$showExit)"
+    }
     $target = Join-Path $root $localPath
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
     [System.IO.File]::WriteAllLines($target, [string[]]$text, [System.Text.UTF8Encoding]::new($false))
@@ -32,8 +46,13 @@ try {
   Restore-FromOrigin 'automation/install_scheduled_task.ps1' 'automation\install_scheduled_task.ps1'
 
   # Install/update the scheduled task from the freshly restored installer.
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'automation\install_scheduled_task.ps1') 2>&1 | Tee-Object -FilePath $bootstrapLog -Append
-  if ($LASTEXITCODE -ne 0) { throw 'scheduled task install failed' }
+  $savedErrorActionPreference=$ErrorActionPreference
+  $ErrorActionPreference='Continue'
+  $installOutput=@(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'automation\install_scheduled_task.ps1') 2>&1)
+  $installExit=$LASTEXITCODE
+  $ErrorActionPreference=$savedErrorActionPreference
+  $installOutput | ForEach-Object { $_.ToString() } | Tee-Object -FilePath $bootstrapLog -Append
+  if ($installExit -ne 0) { throw "scheduled task install failed (exit=$installExit)" }
 
   $task=Get-ScheduledTask -TaskName 'HorseRacingAI-Auto' -ErrorAction Stop
   Log ("TASK_REGISTERED state=" + $task.State)
