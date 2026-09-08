@@ -1,0 +1,6 @@
+HorseRacingAI WINNER STRENGTHENING
+status=SUCCESS validation_start=2025-08-24
+baseline top1=25.37% top3=57.76%
+ranker top1=25.07% top3=57.09%
+ranker_relative top1=25.28% top3=56.88%
+adopted=NONE model_saved=False

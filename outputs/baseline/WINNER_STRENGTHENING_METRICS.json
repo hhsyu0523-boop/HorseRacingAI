@@ -1,0 +1,50 @@
+{
+  "status": "SUCCESS",
+  "validation_start": "2025-08-24",
+  "train_rows": 189493,
+  "validation_rows": 46949,
+  "feature_count": 37,
+  "adoption_rule": {
+    "min_top1_gain": 0.02,
+    "top3_must_not_decline": true
+  },
+  "models": {
+    "binary_baseline": {
+      "races": 3414,
+      "winner_top1_hits": 866,
+      "winner_top1_rate": 0.2536613942589338,
+      "winner_in_top3_hits": 1972,
+      "winner_in_top3_rate": 0.5776215582893967,
+      "exact_1_2_hits": 223,
+      "exact_1_2_rate": 0.06531927357937903,
+      "exact_1_2_3_hits": 51,
+      "exact_1_2_3_rate": 0.014938488576449912
+    },
+    "race_ranker": {
+      "races": 3414,
+      "winner_top1_hits": 856,
+      "winner_top1_rate": 0.2507322788517868,
+      "winner_in_top3_hits": 1949,
+      "winner_in_top3_rate": 0.5708845928529585,
+      "exact_1_2_hits": 220,
+      "exact_1_2_rate": 0.06444053895723492,
+      "exact_1_2_3_hits": 50,
+      "exact_1_2_3_rate": 0.014645577035735208
+    },
+    "race_ranker_relative": {
+      "races": 3414,
+      "winner_top1_hits": 863,
+      "winner_top1_rate": 0.2527826596367897,
+      "winner_in_top3_hits": 1942,
+      "winner_in_top3_rate": 0.5688342120679555,
+      "exact_1_2_hits": 208,
+      "exact_1_2_rate": 0.06092560046865846,
+      "exact_1_2_3_hits": 46,
+      "exact_1_2_3_rate": 0.013473930872876391
+    }
+  },
+  "adopted": null,
+  "model_saved": false,
+  "model_path": null,
+  "finished_at_jst": "2026-09-09T08:10:55+09:00"
+}
