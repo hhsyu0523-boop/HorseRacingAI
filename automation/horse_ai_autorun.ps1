@@ -72,8 +72,23 @@ try {
     Log "[$(Get-Date -Format o)] OK $name"
   }
   function Publish([string]$message) {
-    $r=Invoke-Native $git @('add','-f','outputs/automation/*.log','outputs/automation/LATEST_STATUS.txt','outputs/baseline/*.json','outputs/baseline/*.txt') $autoRoot @($log,$rootLog)
-    if ($r.ExitCode -ne 0) { throw 'git add failed' }
+    # Automation status/logs always exist and must always be published.
+    $stage=@('add','-f','outputs/automation/*.log','outputs/automation/LATEST_STATUS.txt')
+
+    # Baseline artifacts are optional. Do not pass unmatched pathspecs to git add,
+    # because git returns exit 128 when a wildcard matches no files.
+    $baselineDir=Join-Path $autoRoot 'outputs\baseline'
+    if (Test-Path $baselineDir) {
+      if (Get-ChildItem -Path $baselineDir -Filter '*.json' -File -ErrorAction SilentlyContinue | Select-Object -First 1) {
+        $stage += 'outputs/baseline/*.json'
+      }
+      if (Get-ChildItem -Path $baselineDir -Filter '*.txt' -File -ErrorAction SilentlyContinue | Select-Object -First 1) {
+        $stage += 'outputs/baseline/*.txt'
+      }
+    }
+
+    $r=Invoke-Native $git $stage $autoRoot @($log,$rootLog)
+    if ($r.ExitCode -ne 0) { throw "git add failed exit=$($r.ExitCode)" }
     $r=Invoke-Native $git @('diff','--cached','--quiet') $autoRoot @($log,$rootLog)
     if ($r.ExitCode -eq 0) { return }
     if ($r.ExitCode -ne 1) { throw "git diff failed exit=$($r.ExitCode)" }
