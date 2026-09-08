@@ -5,8 +5,6 @@ $git = (Get-Command git.exe -ErrorAction Stop).Source
 $py64 = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'
 $productionDb = Join-Path $root 'database\horse_racing.db'
 $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-# Use a unique worktree per run. Reusing one fixed directory can fail before logging
-# when a previous run was interrupted or the old worktree is still registered.
 $autoRoot = Join-Path $env:LOCALAPPDATA ("HorseRacingAI_AutomationWorktree_" + $stamp)
 $rootLogDir = Join-Path $root 'outputs\automation'
 New-Item -ItemType Directory -Force -Path $rootLogDir | Out-Null
@@ -17,24 +15,44 @@ $worktreeReady = $false
 function Root-Log([string]$text) {
   $text | Tee-Object -FilePath $rootLog -Append
 }
-function Invoke-Git([string[]]$argv, [string]$cwd=$root) {
+
+# Windows PowerShell can turn a native program's stderr into ErrorRecord objects.
+# Git writes normal progress (for example "From https://...") to stderr, so with
+# ErrorActionPreference=Stop a successful git command could abort the runner.
+# Native commands are therefore executed with Continue and judged only by exit code.
+function Invoke-Native([string]$exe, [string[]]$argv, [string]$cwd=$root, [string[]]$logFiles=@()) {
   Push-Location $cwd
   try {
-    Root-Log "[$(Get-Date -Format o)] git $($argv -join ' ')"
-    & $git @argv 2>&1 | Tee-Object -FilePath $rootLog -Append
-    if ($LASTEXITCODE -ne 0) { throw "git $($argv -join ' ') failed exit=$LASTEXITCODE" }
-  } finally { Pop-Location }
+    $saved=$ErrorActionPreference
+    $ErrorActionPreference='Continue'
+    $out=@(& $exe @argv 2>&1)
+    $code=$LASTEXITCODE
+    $ErrorActionPreference=$saved
+    foreach ($line in $out) {
+      $s=$line.ToString()
+      foreach ($f in $logFiles) { $s | Add-Content -Encoding UTF8 $f }
+    }
+    return [pscustomobject]@{ ExitCode=$code; Output=$out }
+  } finally {
+    $ErrorActionPreference=$saved
+    Pop-Location
+  }
+}
+
+function Invoke-Git([string[]]$argv, [string]$cwd=$root) {
+  Root-Log "[$(Get-Date -Format o)] git $($argv -join ' ')"
+  $r=Invoke-Native $git $argv $cwd @($rootLog)
+  if ($r.ExitCode -ne 0) { throw "git $($argv -join ' ') failed exit=$($r.ExitCode)" }
+  return $r
 }
 
 try {
   "RUNNING $(Get-Date -Format o) step=bootstrap" | Set-Content -Encoding UTF8 $rootStatus
 
-  # IMPORTANT: Never pull/rebase/stash/reset the user's main research worktree.
-  # It may contain legitimate uncommitted experiments. All unattended work runs in
-  # a unique clean detached worktree created from origin/main.
-  Invoke-Git @('fetch','origin','main')
-  Invoke-Git @('worktree','prune')
-  Invoke-Git @('worktree','add','--force','--detach',$autoRoot,'origin/main')
+  # Never pull/rebase/stash/reset the user's research worktree.
+  Invoke-Git @('fetch','origin','main') | Out-Null
+  Invoke-Git @('worktree','prune') | Out-Null
+  Invoke-Git @('worktree','add','--force','--detach',$autoRoot,'origin/main') | Out-Null
   $worktreeReady = $true
 
   Set-Location $autoRoot
@@ -49,22 +67,24 @@ try {
   }
   function Run-Step([string]$name, [string]$exe, [string[]]$argv) {
     Log "[$(Get-Date -Format o)] START $name"
-    & $exe @argv 2>&1 | Tee-Object -FilePath $log -Append | Tee-Object -FilePath $rootLog -Append
-    if ($LASTEXITCODE -ne 0) { throw "$name failed exit=$LASTEXITCODE" }
+    $r=Invoke-Native $exe $argv $autoRoot @($log,$rootLog)
+    if ($r.ExitCode -ne 0) { throw "$name failed exit=$($r.ExitCode)" }
     Log "[$(Get-Date -Format o)] OK $name"
   }
   function Publish([string]$message) {
-    & $git add -f 'outputs/automation/*.log' 'outputs/automation/LATEST_STATUS.txt' 'outputs/baseline/*.json' 'outputs/baseline/*.txt' 2>&1 | Tee-Object -FilePath $log -Append
-    & $git diff --cached --quiet
-    if ($LASTEXITCODE -eq 0) { return }
-    & $git -c user.name='HorseRacingAI Automation' -c user.email='actions@local' commit -m $message 2>&1 | Tee-Object -FilePath $log -Append
-    if ($LASTEXITCODE -ne 0) { throw 'git commit failed' }
-    & $git push origin HEAD:main 2>&1 | Tee-Object -FilePath $log -Append
-    if ($LASTEXITCODE -ne 0) {
-      & $git pull --rebase origin main 2>&1 | Tee-Object -FilePath $log -Append
-      if ($LASTEXITCODE -ne 0) { throw 'automation worktree rebase failed' }
-      & $git push origin HEAD:main 2>&1 | Tee-Object -FilePath $log -Append
-      if ($LASTEXITCODE -ne 0) { throw 'git push failed after retry' }
+    $r=Invoke-Native $git @('add','-f','outputs/automation/*.log','outputs/automation/LATEST_STATUS.txt','outputs/baseline/*.json','outputs/baseline/*.txt') $autoRoot @($log,$rootLog)
+    if ($r.ExitCode -ne 0) { throw 'git add failed' }
+    $r=Invoke-Native $git @('diff','--cached','--quiet') $autoRoot @($log,$rootLog)
+    if ($r.ExitCode -eq 0) { return }
+    if ($r.ExitCode -ne 1) { throw "git diff failed exit=$($r.ExitCode)" }
+    $r=Invoke-Native $git @('-c','user.name=HorseRacingAI Automation','-c','user.email=actions@local','commit','-m',$message) $autoRoot @($log,$rootLog)
+    if ($r.ExitCode -ne 0) { throw 'git commit failed' }
+    $r=Invoke-Native $git @('push','origin','HEAD:main') $autoRoot @($log,$rootLog)
+    if ($r.ExitCode -ne 0) {
+      $r=Invoke-Native $git @('pull','--rebase','origin','main') $autoRoot @($log,$rootLog)
+      if ($r.ExitCode -ne 0) { throw 'automation worktree rebase failed' }
+      $r=Invoke-Native $git @('push','origin','HEAD:main') $autoRoot @($log,$rootLog)
+      if ($r.ExitCode -ne 0) { throw 'git push failed after retry' }
     }
   }
 
@@ -93,18 +113,19 @@ try {
       $log = Join-Path $logDir ("autorun_$stamp.log")
       $status = Join-Path $logDir 'LATEST_STATUS.txt'
       $msg | Set-Content -Encoding UTF8 $status
-      Root-Log "Attempting remote failure publish"
-      & $git add -f 'outputs/automation/*.log' 'outputs/automation/LATEST_STATUS.txt'
-      & $git -c user.name='HorseRacingAI Automation' -c user.email='actions@local' commit -m "HorseRacingAI automation failure $stamp"
-      & $git push origin HEAD:main
+      Root-Log 'Attempting remote failure publish'
+      $r=Invoke-Native $git @('add','-f','outputs/automation/*.log','outputs/automation/LATEST_STATUS.txt') $autoRoot @($rootLog)
+      if ($r.ExitCode -eq 0) {
+        $r=Invoke-Native $git @('-c','user.name=HorseRacingAI Automation','-c','user.email=actions@local','commit','-m',"HorseRacingAI automation failure $stamp") $autoRoot @($rootLog)
+        if ($r.ExitCode -eq 0) { Invoke-Native $git @('push','origin','HEAD:main') $autoRoot @($rootLog) | Out-Null }
+      }
     } catch { Root-Log "FAILED_TO_PUBLISH $($_.Exception.Message)" }
   }
   exit 1
 } finally {
-  # Cleanup only the isolated automation worktree. Never touch the user's research tree.
   try {
     Set-Location $root
-    if ($worktreeReady) { & $git worktree remove --force $autoRoot 2>&1 | Out-Null }
-    & $git worktree prune 2>&1 | Out-Null
+    if ($worktreeReady) { Invoke-Native $git @('worktree','remove','--force',$autoRoot) $root @($rootLog) | Out-Null }
+    Invoke-Native $git @('worktree','prune') $root @($rootLog) | Out-Null
   } catch {}
 }
