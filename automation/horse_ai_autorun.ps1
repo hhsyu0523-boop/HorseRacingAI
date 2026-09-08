@@ -97,10 +97,16 @@ try {
   $env:HORSE_RACING_MODEL_DIR = $modelDir
   Publish "HorseRacingAI automation running $stamp"
   Run-Step 'holdout_evaluation' $py64 @('scripts\evaluate_5year_featurehistory.py')
+
   "RUNNING $(Get-Date -Format o) step=winner_strengthening" | Set-Content -Encoding UTF8 $status
   "RUNNING $(Get-Date -Format o) step=winner_strengthening" | Set-Content -Encoding UTF8 $rootStatus
   Publish "HorseRacingAI winner strengthening running $stamp"
   Run-Step 'winner_strengthening' $py64 @('scripts\evaluate_winner_strengthening.py')
+
+  "RUNNING $(Get-Date -Format o) step=winner_feature_v2" | Set-Content -Encoding UTF8 $status
+  "RUNNING $(Get-Date -Format o) step=winner_feature_v2" | Set-Content -Encoding UTF8 $rootStatus
+  Publish "HorseRacingAI winner feature V2 running $stamp"
+  Run-Step 'winner_feature_v2' $py64 @('scripts\evaluate_winner_feature_v2.py')
 
   "SUCCESS $(Get-Date -Format o) step=complete" | Set-Content -Encoding UTF8 $status
   "SUCCESS $(Get-Date -Format o) step=complete" | Set-Content -Encoding UTF8 $rootStatus
