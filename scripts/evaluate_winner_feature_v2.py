@@ -173,8 +173,10 @@ def add_prior_features(rows):
         by_date[str(r["race_date"])].append(r)
 
     horse_hist = defaultdict(list)
-    jockey_hist = defaultdict(list)
-    horse_jockey_hist = defaultdict(list)
+    jockey_stats = defaultdict(lambda: [0, 0, 0])
+    jockey_course_stats = defaultdict(lambda: [0, 0, 0])
+    jockey_surface_stats = defaultdict(lambda: [0, 0, 0])
+    combo_stats = defaultdict(lambda: [0, 0, 0])
     out = {}
 
     for d in sorted(by_date):
@@ -184,8 +186,6 @@ def add_prior_features(rows):
             horse = str(r["horse_name"])
             jockey = str(r["jockey_name"])
             hh = horse_hist[horse]
-            jh = jockey_hist[jockey]
-            hj = horse_jockey_hist[(horse, jockey)]
             prev = hh[-5:]
             last = hh[-1] if hh else None
 
@@ -257,17 +257,18 @@ def add_prior_features(rows):
             else:
                 form["form_finish_trend"] = 0.0
 
-            jw, _, jt3 = finish_rates(jh)
-            hjw, _, hjt3 = finish_rates(hj)
-            j_course = [x for x in jh if str(x["racecourse_code"]) == course]
-            j_surface = [x for x in jh if str(x["surface"]) == surface]
-            jcw, _, jct3 = finish_rates(j_course)
-            jsw, _, jst3 = finish_rates(j_surface)
+            def rates3(a):
+                n, w, t3 = a
+                return ((w / n) if n else 0.0, (t3 / n) if n else 0.0, n)
+            jw, jt3, jn = rates3(jockey_stats[jockey])
+            hjw, hjt3, hjn = rates3(combo_stats[(horse, jockey)])
+            jcw, jct3, jcn = rates3(jockey_course_stats[(jockey, course)])
+            jsw, jst3, jsn = rates3(jockey_surface_stats[(jockey, surface)])
             jockey_context = {
-                "jc_jockey_win": jw, "jc_jockey_top3": jt3, "jc_jockey_n": float(len(jh)),
-                "jc_combo_win": hjw, "jc_combo_top3": hjt3, "jc_combo_n": float(len(hj)),
-                "jc_course_win": jcw, "jc_course_top3": jct3, "jc_course_n": float(len(j_course)),
-                "jc_surface_win": jsw, "jc_surface_top3": jst3, "jc_surface_n": float(len(j_surface)),
+                "jc_jockey_win": jw, "jc_jockey_top3": jt3, "jc_jockey_n": float(jn),
+                "jc_combo_win": hjw, "jc_combo_top3": hjt3, "jc_combo_n": float(hjn),
+                "jc_course_win": jcw, "jc_course_top3": jct3, "jc_course_n": float(jcn),
+                "jc_surface_win": jsw, "jc_surface_top3": jst3, "jc_surface_n": float(jsn),
             }
 
             cur_class = CLASS_RANK.get(str(r["h_race_class"]), CLASS_RANK.get(str(r["race_class"]), -1))
@@ -278,7 +279,7 @@ def add_prior_features(rows):
             class_weather = {
                 "cw_class_rank": float(cur_class),
                 "cw_class_delta": float(cur_class - prev_class) if prev_class >= 0 and cur_class >= 0 else 0.0,
-                "cw_weather_code": float(abs(hash(weather)) % 97),
+                "cw_weather_code": float({"不明":0,"晴":1,"曇":2,"雨":3,"小雨":4,"雪":5,"小雪":6}.get(weather, 0)),
                 "cw_weather_win": ww,
                 "cw_weather_top3": wt3,
                 "cw_weather_n": float(len(same_weather)),
@@ -321,9 +322,20 @@ def add_prior_features(rows):
         for r in day:
             horse = str(r["horse_name"])
             jockey = str(r["jockey_name"])
+            course = str(r["racecourse_code"])
+            surface = str(r["surface"])
             horse_hist[horse].append(r)
-            jockey_hist[jockey].append(r)
-            horse_jockey_hist[(horse, jockey)].append(r)
+            won = int(int(r["actual_finish_position"]) == 1)
+            top3 = int(int(r["actual_finish_position"]) <= 3)
+            for bucket in (
+                jockey_stats[jockey],
+                jockey_course_stats[(jockey, course)],
+                jockey_surface_stats[(jockey, surface)],
+                combo_stats[(horse, jockey)],
+            ):
+                bucket[0] += 1
+                bucket[1] += won
+                bucket[2] += top3
     return out
 
 
