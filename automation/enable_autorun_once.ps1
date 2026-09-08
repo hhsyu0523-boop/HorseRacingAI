@@ -7,9 +7,6 @@ $localLogDir=Join-Path $root 'outputs\automation'
 New-Item -ItemType Directory -Force -Path $localLogDir | Out-Null
 $recoveryStatus=Join-Path $localLogDir 'LATEST_RECOVERY_STATUS.txt'
 
-# Register-ScheduledTask can require elevation, especially when replacing an
-# existing task created with higher privileges. Relaunch once with UAC and make
-# the result visible to the parent shell instead of returning silently.
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 $principal=New-Object Security.Principal.WindowsPrincipal($identity)
 $isAdmin=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -93,25 +90,40 @@ try {
   $task=Get-ScheduledTask -TaskName 'HorseRacingAI-Auto' -ErrorAction Stop
   Log ('TASK_REGISTERED state=' + $task.State)
 
-  Start-ScheduledTask -TaskName 'HorseRacingAI-Auto'
-  Log 'STARTED: HorseRacingAI-Auto'
-
+  # A stale status from a previous failed attempt must never be accepted as proof
+  # that this launch started. Remove it immediately before starting the task and
+  # only accept a status file created by this run.
   $statusPath=Join-Path $localLogDir 'LATEST_LOCAL_STATUS.txt'
+  if (Test-Path $statusPath) {
+    $archive=Join-Path $localLogDir ('previous_local_status_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '.txt')
+    Move-Item -Force $statusPath $archive
+    Log ('ARCHIVED_STALE_STATUS: ' + $archive)
+  }
+  $launchTime=Get-Date
+  Start-ScheduledTask -TaskName 'HorseRacingAI-Auto'
+  Log ('STARTED: HorseRacingAI-Auto launch=' + $launchTime.ToString('o'))
+
   $deadline=(Get-Date).AddSeconds(60)
   while ((Get-Date) -lt $deadline) {
     if (Test-Path $statusPath) {
-      $status=(Get-Content $statusPath -Raw).Trim()
-      Log ('LOCAL_STATUS: ' + $status)
-      Set-RecoveryStatus ('RECOVERY_OK ' + (Get-Date -Format o) + ' local_status=' + $status)
-      Write-Host $status
-      Write-Host 'RECOVERY_OK: task registered and runner produced local status'
-      exit 0
+      $item=Get-Item $statusPath
+      if ($item.LastWriteTime -ge $launchTime.AddSeconds(-2)) {
+        $status=(Get-Content $statusPath -Raw).Trim()
+        Log ('FRESH_LOCAL_STATUS: ' + $status)
+        if ($status -match '^FAILED ') { throw ('runner reported fresh FAILED: ' + $status) }
+        if ($status -match '^(RUNNING|SUCCESS) ') {
+          Set-RecoveryStatus ('RECOVERY_OK ' + (Get-Date -Format o) + ' local_status=' + $status)
+          Write-Host $status
+          Write-Host 'RECOVERY_OK: task registered and runner produced fresh local status'
+          exit 0
+        }
+      }
     }
     Start-Sleep -Seconds 2
   }
 
   $info=Get-ScheduledTaskInfo -TaskName 'HorseRacingAI-Auto' -ErrorAction Stop
-  throw ('task started but no LATEST_LOCAL_STATUS.txt appeared within 60s; LastTaskResult=' + $info.LastTaskResult + '; LastRunTime=' + $info.LastRunTime)
+  throw ('task started but no fresh LATEST_LOCAL_STATUS.txt appeared within 60s; LastTaskResult=' + $info.LastTaskResult + '; LastRunTime=' + $info.LastRunTime)
 }
 catch {
   Set-RecoveryStatus ('RECOVERY_FAILED ' + (Get-Date -Format o) + ' error=' + $_.Exception.Message)
