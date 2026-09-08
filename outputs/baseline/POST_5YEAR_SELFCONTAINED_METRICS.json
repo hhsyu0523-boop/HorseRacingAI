@@ -1,0 +1,21 @@
+{
+  "status": "SUCCESS",
+  "metrics": {
+    "validation_start": "2025-08-24",
+    "train_rows": 189493,
+    "validation_rows": 46949,
+    "feature_count": 37,
+    "validation_races": 3414,
+    "winner_top1_hits": 866,
+    "winner_top1_rate": 0.2536613942589338,
+    "exact_1_2_hits": 223,
+    "exact_1_2_rate": 0.06531927357937903,
+    "exact_1_2_3_hits": 51,
+    "exact_1_2_3_rate": 0.014938488576449912,
+    "winner_in_predicted_top3_hits": 1972,
+    "winner_in_predicted_top3_rate": 0.5776215582893967,
+    "actual_top3_set_captured_hits": 244,
+    "actual_top3_set_captured_rate": 0.07147041593438781
+  },
+  "finished_at_jst": "2026-09-09T07:54:53+09:00"
+}

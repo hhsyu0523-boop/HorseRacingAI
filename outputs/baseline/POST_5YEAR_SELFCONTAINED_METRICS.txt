@@ -1,0 +1,10 @@
+HorseRacingAI 5YEAR SELF-CONTAINED HOLDOUT
+status=SUCCESS
+validation_start=2025-08-24
+train_rows=189493 validation_rows=46949 features=37
+validation_races=3414
+winner_top1=866/3414 (25.37%)
+exact_1_2=223/3414 (6.53%)
+exact_1_2_3=51/3414 (1.49%)
+winner_in_top3=1972/3414 (57.76%)
+actual_top3_set_captured=244/3414 (7.15%)

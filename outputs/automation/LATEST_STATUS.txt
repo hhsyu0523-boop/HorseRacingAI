@@ -1,1 +1,1 @@
-﻿RUNNING 2026-09-09T07:54:20.0894835+09:00 step=validation isolated_worktree=C:\Users\HidekazuHasegawa\AppData\Local\HorseRacingAI_AutomationWorktree_20260909_075419
+﻿SUCCESS 2026-09-09T07:54:53.9258505+09:00 step=complete
