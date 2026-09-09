@@ -64,13 +64,26 @@ try {
     if ($r.ExitCode -ne 0) { throw "$name failed exit=$($r.ExitCode)" }
     Log "[$(Get-Date -Format o)] OK $name"
   }
-  function Publish([string]$message) {
-    $stage=@('add','-f','outputs/automation/*.log','outputs/automation/LATEST_STATUS.txt')
+  function Build-PublishStage() {
+    $stage=@('add','-f')
+    if (Test-Path $status) { $stage += 'outputs/automation/LATEST_STATUS.txt' }
+    foreach ($file in @(Get-ChildItem -Path $logDir -Filter '*.log' -File -ErrorAction SilentlyContinue)) {
+      $stage += ('outputs/automation/' + $file.Name)
+    }
     $baselineDir=Join-Path $autoRoot 'outputs\baseline'
     if (Test-Path $baselineDir) {
-      if (Get-ChildItem -Path $baselineDir -Filter '*.json' -File -ErrorAction SilentlyContinue | Select-Object -First 1) { $stage += 'outputs/baseline/*.json' }
-      if (Get-ChildItem -Path $baselineDir -Filter '*.txt' -File -ErrorAction SilentlyContinue | Select-Object -First 1) { $stage += 'outputs/baseline/*.txt' }
+      foreach ($file in @(Get-ChildItem -Path $baselineDir -Filter '*.json' -File -ErrorAction SilentlyContinue)) {
+        $stage += ('outputs/baseline/' + $file.Name)
+      }
+      foreach ($file in @(Get-ChildItem -Path $baselineDir -Filter '*.txt' -File -ErrorAction SilentlyContinue)) {
+        $stage += ('outputs/baseline/' + $file.Name)
+      }
     }
+    return ,$stage
+  }
+  function Publish([string]$message) {
+    $stage=Build-PublishStage
+    if ($stage.Count -le 2) { return }
     $r=Invoke-Native $git $stage $autoRoot @($log,$rootLog)
     if ($r.ExitCode -ne 0) { throw "git add failed exit=$($r.ExitCode)" }
     $r=Invoke-Native $git @('diff','--cached','--quiet') $autoRoot @($log,$rootLog)
@@ -125,10 +138,17 @@ try {
       $status = Join-Path $logDir 'LATEST_STATUS.txt'
       $msg | Set-Content -Encoding UTF8 $status
       Root-Log 'Attempting remote failure publish'
-      $r=Invoke-Native $git @('add','-f','outputs/automation/*.log','outputs/automation/LATEST_STATUS.txt') $autoRoot @($rootLog)
-      if ($r.ExitCode -eq 0) {
-        $r=Invoke-Native $git @('-c','user.name=HorseRacingAI Automation','-c','user.email=actions@local','commit','-m',"HorseRacingAI automation failure $stamp") $autoRoot @($rootLog)
-        if ($r.ExitCode -eq 0) { Invoke-Native $git @('push','origin','HEAD:main') $autoRoot @($rootLog) | Out-Null }
+      $stage=@('add','-f')
+      if (Test-Path $status) { $stage += 'outputs/automation/LATEST_STATUS.txt' }
+      foreach ($file in @(Get-ChildItem -Path $logDir -Filter '*.log' -File -ErrorAction SilentlyContinue)) {
+        $stage += ('outputs/automation/' + $file.Name)
+      }
+      if ($stage.Count -gt 2) {
+        $r=Invoke-Native $git $stage $autoRoot @($rootLog)
+        if ($r.ExitCode -eq 0) {
+          $r=Invoke-Native $git @('-c','user.name=HorseRacingAI Automation','-c','user.email=actions@local','commit','-m',"HorseRacingAI automation failure $stamp") $autoRoot @($rootLog)
+          if ($r.ExitCode -eq 0) { Invoke-Native $git @('push','origin','HEAD:main') $autoRoot @($rootLog) | Out-Null }
+        }
       }
     } catch { Root-Log "FAILED_TO_PUBLISH $($_.Exception.Message)" }
   }
