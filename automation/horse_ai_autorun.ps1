@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Force -Path $rootLogDir | Out-Null
 $rootStatus = Join-Path $rootLogDir 'LATEST_LOCAL_STATUS.txt'
 $rootLog = Join-Path $rootLogDir ("bootstrap_$stamp.log")
 $worktreeReady = $false
+$stepTimeoutSeconds = 1800
 
 function Root-Log([string]$text) { $text | Tee-Object -FilePath $rootLog -Append }
 
@@ -60,7 +61,11 @@ try {
   }
   function Run-Step([string]$name, [string]$exe, [string[]]$argv) {
     Log "[$(Get-Date -Format o)] START $name"
-    $r=Invoke-Native $exe $argv $autoRoot @($log,$rootLog)
+    $timeoutRunner = Join-Path $autoRoot 'automation\run_with_timeout.py'
+    if (!(Test-Path $timeoutRunner)) { throw "timeout runner missing: $timeoutRunner" }
+    $wrapped = @($timeoutRunner,'--timeout',"$stepTimeoutSeconds",'--',$exe) + $argv
+    $r=Invoke-Native $py64 $wrapped $autoRoot @($log,$rootLog)
+    if ($r.ExitCode -eq 124) { throw "$name timed out after ${stepTimeoutSeconds}s" }
     if ($r.ExitCode -ne 0) { throw "$name failed exit=$($r.ExitCode)" }
     Log "[$(Get-Date -Format o)] OK $name"
   }
