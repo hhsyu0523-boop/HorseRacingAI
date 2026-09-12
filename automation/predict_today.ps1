@@ -6,8 +6,6 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $root = (Resolve-Path $root).Path
 
-# JV-Link is a 32-bit COM server. Use the project's x86 runtime for every
-# command that touches JV-Link. Keep the normal x64 Python for prediction.
 $py64 = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'
 if (!(Test-Path $py64)) { $py64 = (Get-Command python.exe -ErrorAction Stop).Source }
 $py32 = Join-Path $root '.runtime_python312_x86\python.exe'
@@ -39,15 +37,15 @@ try {
   "RUNNING $(Get-Date -Format o) date=$Date step=jvlink-test" | Set-Content -Encoding UTF8 $statusFile
   $null = Run-Python $py32 @('main.py','test-connection')
 
-  "RUNNING $(Get-Date -Format o) date=$Date step=race-list" | Set-Content -Encoding UTF8 $statusFile
-  $raceList = Run-Python $py32 @('main.py','race-list','--date',$Date)
+  "RUNNING $(Get-Date -Format o) date=$Date step=current-week-fetch" | Set-Content -Encoding UTF8 $statusFile
+  $fetchLines = Run-Python $py32 @('scripts\fetch_current_day.py','--date',$Date)
   $raceKeys = @()
-  foreach ($line in $raceList) {
+  foreach ($line in $fetchLines) {
     $m = [regex]::Match($line.ToString(), '\[(\d{12})\]')
     if ($m.Success) { $raceKeys += $m.Groups[1].Value }
   }
   $raceKeys = @($raceKeys | Sort-Object -Unique)
-  if ($raceKeys.Count -eq 0) { throw "no race keys found for $Date" }
+  if ($raceKeys.Count -eq 0) { throw "no current-week race keys found for $Date`n$($fetchLines -join [Environment]::NewLine)" }
 
   $header = @(
     'HorseRacingAI DAILY PREDICTION'
@@ -57,19 +55,17 @@ try {
     ''
   )
   $header | Set-Content -Encoding UTF8 $outFile
+  foreach ($line in $fetchLines) { $line.ToString() | Add-Content -Encoding UTF8 $outFile }
+  '' | Add-Content -Encoding UTF8 $outFile
 
   $ok = 0
   $failed = 0
   foreach ($raceKey in $raceKeys) {
-    "RUNNING $(Get-Date -Format o) date=$Date step=entries race=$raceKey" | Set-Content -Encoding UTF8 $statusFile
+    "RUNNING $(Get-Date -Format o) date=$Date step=predict race=$raceKey" | Set-Content -Encoding UTF8 $statusFile
     try {
-      $entries = Run-Python $py32 @('main.py','race-entries','--race',$raceKey) -AllowEmpty
       '========================' | Add-Content -Encoding UTF8 $outFile
       "RACE $raceKey" | Add-Content -Encoding UTF8 $outFile
       '========================' | Add-Content -Encoding UTF8 $outFile
-      foreach ($line in $entries) { $line.ToString() | Add-Content -Encoding UTF8 $outFile }
-
-      "RUNNING $(Get-Date -Format o) date=$Date step=predict race=$raceKey" | Set-Content -Encoding UTF8 $statusFile
       $pred = Run-Python $py64 @('main.py','predict-race','--race',$raceKey)
       foreach ($line in $pred) { $line.ToString() | Add-Content -Encoding UTF8 $outFile }
       '' | Add-Content -Encoding UTF8 $outFile
@@ -95,9 +91,7 @@ try {
           if ($LASTEXITCODE -eq 0) { & $git.Source push origin HEAD:main | Out-Null }
         }
       }
-    } finally {
-      Pop-Location
-    }
+    } finally { Pop-Location }
   }
 
   Write-Output (Get-Content -Raw -Encoding UTF8 $statusFile)
