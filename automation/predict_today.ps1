@@ -49,37 +49,45 @@ try {
   $raceKeys = @($raceKeys | Sort-Object -Unique)
   if ($raceKeys.Count -eq 0) { throw "no race keys found for $Date" }
 
-  @("HorseRacingAI DAILY PREDICTION","date=$Date","generated_at=$(Get-Date -Format o)","races=$($raceKeys.Count),"") | Set-Content -Encoding UTF8 $outFile
+  $header = @(
+    'HorseRacingAI DAILY PREDICTION'
+    "date=$Date"
+    "generated_at=$(Get-Date -Format o)"
+    "races=$($raceKeys.Count)"
+    ''
+  )
+  $header | Set-Content -Encoding UTF8 $outFile
 
-  $ok = 0; $failed = 0
+  $ok = 0
+  $failed = 0
   foreach ($raceKey in $raceKeys) {
     "RUNNING $(Get-Date -Format o) date=$Date step=entries race=$raceKey" | Set-Content -Encoding UTF8 $statusFile
     try {
       $entries = Run-Python $py32 @('main.py','race-entries','--race',$raceKey) -AllowEmpty
-      "========================" | Add-Content -Encoding UTF8 $outFile
+      '========================' | Add-Content -Encoding UTF8 $outFile
       "RACE $raceKey" | Add-Content -Encoding UTF8 $outFile
-      "========================" | Add-Content -Encoding UTF8 $outFile
+      '========================' | Add-Content -Encoding UTF8 $outFile
       foreach ($line in $entries) { $line.ToString() | Add-Content -Encoding UTF8 $outFile }
 
       "RUNNING $(Get-Date -Format o) date=$Date step=predict race=$raceKey" | Set-Content -Encoding UTF8 $statusFile
       $pred = Run-Python $py64 @('main.py','predict-race','--race',$raceKey)
       foreach ($line in $pred) { $line.ToString() | Add-Content -Encoding UTF8 $outFile }
-      "" | Add-Content -Encoding UTF8 $outFile
+      '' | Add-Content -Encoding UTF8 $outFile
       $ok++
     } catch {
       "FAILED_RACE $raceKey error=$($_.Exception.Message)" | Add-Content -Encoding UTF8 $outFile
-      "" | Add-Content -Encoding UTF8 $outFile
+      '' | Add-Content -Encoding UTF8 $outFile
       $failed++
     }
   }
 
   "SUCCESS $(Get-Date -Format o) date=$Date races=$($raceKeys.Count) predicted=$ok failed=$failed file=$outFile" | Set-Content -Encoding UTF8 $statusFile
 
-  $git = (Get-Command git.exe -ErrorAction SilentlyContinue)
+  $git = Get-Command git.exe -ErrorAction SilentlyContinue
   if ($git) {
     Push-Location $root
     try {
-      & $git.Source add -f -- "outputs/predictions/prediction_$Date.txt" "outputs/predictions/LATEST_PREDICTION_STATUS.txt"
+      & $git.Source add -f -- "outputs/predictions/prediction_$Date.txt" 'outputs/predictions/LATEST_PREDICTION_STATUS.txt'
       if ($LASTEXITCODE -eq 0) {
         & $git.Source diff --cached --quiet
         if ($LASTEXITCODE -eq 1) {
@@ -87,7 +95,9 @@ try {
           if ($LASTEXITCODE -eq 0) { & $git.Source push origin HEAD:main | Out-Null }
         }
       }
-    } finally { Pop-Location }
+    } finally {
+      Pop-Location
+    }
   }
 
   Write-Output (Get-Content -Raw -Encoding UTF8 $statusFile)
