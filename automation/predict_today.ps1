@@ -38,7 +38,7 @@ try {
   $null = Run-Python $py32 @('main.py','test-connection')
 
   "RUNNING $(Get-Date -Format o) date=$Date step=current-week-fetch" | Set-Content -Encoding UTF8 $statusFile
-  $fetchLines = Run-Python $py32 @('scripts\fetch_current_day.py','--date',$Date)
+  $fetchLines = Run-Python $py32 @('-m','scripts.fetch_current_day','--date',$Date)
   $raceKeys = @()
   foreach ($line in $fetchLines) {
     $m = [regex]::Match($line.ToString(), '\[(\d{12})\]')
