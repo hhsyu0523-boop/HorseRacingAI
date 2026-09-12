@@ -126,6 +126,11 @@ try {
   Publish "HorseRacingAI winner feature V2 running $stamp"
   Run-Step 'winner_feature_v2' $py64 @('scripts\evaluate_winner_feature_v2.py')
 
+  "RUNNING $(Get-Date -Format o) step=winner_top3_reranker_v3" | Set-Content -Encoding UTF8 $status
+  "RUNNING $(Get-Date -Format o) step=winner_top3_reranker_v3" | Set-Content -Encoding UTF8 $rootStatus
+  Publish "HorseRacingAI winner Top3 reranker V3 running $stamp"
+  Run-Step 'winner_top3_reranker_v3' $py64 @('scripts\evaluate_winner_top3_reranker_v3.py')
+
   "SUCCESS $(Get-Date -Format o) step=complete" | Set-Content -Encoding UTF8 $status
   "SUCCESS $(Get-Date -Format o) step=complete" | Set-Content -Encoding UTF8 $rootStatus
   Publish "HorseRacingAI automation success $stamp"
