@@ -45,6 +45,24 @@ function Invoke-Git([string[]]$argv, [string]$cwd=$root) {
 try {
   "RUNNING $(Get-Date -Format o) step=bootstrap" | Set-Content -Encoding UTF8 $rootStatus
   Invoke-Git @('fetch','origin','main') | Out-Null
+
+  # The logon trigger is a recovery mechanism, not a second weekly schedule.
+  # Skip healthy logon launches so opening Windows does not repeatedly run the
+  # expensive evaluation pipeline. Run on Sunday after 20:30, or recover when
+  # the required Sunday SUCCESS is still missing on a later day.
+  $gate=Join-Path $root 'automation\autorun_gate.ps1'
+  if (!(Test-Path $gate)) { throw "autorun gate missing: $gate" }
+  $gateOutput=@(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $gate -Root $root 2>&1)
+  $gateExit=$LASTEXITCODE
+  $gateOutput | ForEach-Object { Root-Log $_.ToString() }
+  if ($gateExit -eq 2) {
+    $skip="SKIPPED $(Get-Date -Format o) reason=weekly_success_already_present_or_before_sunday_window"
+    $skip | Set-Content -Encoding UTF8 $rootStatus
+    Root-Log $skip
+    exit 0
+  }
+  if ($gateExit -ne 0) { throw "autorun gate failed exit=$gateExit" }
+
   Invoke-Git @('worktree','prune') | Out-Null
   Invoke-Git @('worktree','add','--force','--detach',$autoRoot,'origin/main') | Out-Null
   $worktreeReady = $true
