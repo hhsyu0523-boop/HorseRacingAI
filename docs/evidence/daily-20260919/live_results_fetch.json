@@ -1,0 +1,18 @@
+{
+  "evidence_type": "LIVE_ACQUISITION_ONLY_NOT_END_TO_END",
+  "status": "SUCCESS",
+  "source": "JV-Link:0B12",
+  "acquired_at": "2026-09-19T10:15:20.784329+09:00",
+  "date": "20260919",
+  "mode": "results",
+  "connection": {
+    "jvinit_code": 0,
+    "jvrtopen_code": 0,
+    "jvread_end_code": 0
+  },
+  "stream_complete": true,
+  "raw_record_count": 21,
+  "source_sha256": "9875d4404e1f7bfa73ee6cabb514aa09d2e84cbe81d3075d036e7f49274612de",
+  "race_count": 2,
+  "entry_count": null
+}
