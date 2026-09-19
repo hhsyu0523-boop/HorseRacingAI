@@ -1,0 +1,28 @@
+test_actual_current_day_db_results_cannot_change_features (test_daily_final.FinalTests.test_actual_current_day_db_results_cannot_change_features) ... ok
+test_future_early_or_unconfirmed_results_rejected (test_daily_final.FinalTests.test_future_early_or_unconfirmed_results_rejected) ... ok
+test_official_correction_creates_new_final_without_overwriting_old (test_daily_final.FinalTests.test_official_correction_creates_new_final_without_overwriting_old) ... ok
+test_partial_results_do_not_regress_and_pre_never_changes (test_daily_final.FinalTests.test_partial_results_do_not_regress_and_pre_never_changes) ... ok
+test_pending_results_are_warning_not_perfect_zero_race_score (test_daily_final.FinalTests.test_pending_results_are_warning_not_perfect_zero_race_score) ... ok
+test_phase_a_fixture_end_to_end_and_duplicate (test_daily_final.FinalTests.test_phase_a_fixture_end_to_end_and_duplicate) ... ok
+test_tied_unknown_or_duplicate_result_rejected (test_daily_final.FinalTests.test_tied_unknown_or_duplicate_result_rejected) ... ok
+test_incomplete_predictions_do_not_publish_partial_file (test_daily_pre.PreTests.test_incomplete_predictions_do_not_publish_partial_file) ... ok
+test_lock_rejects_second_runner (test_daily_pre.PreTests.test_lock_rejects_second_runner) ... ok
+test_missing_four_models_does_not_fallback_to_best_model (test_daily_pre.PreTests.test_missing_four_models_does_not_fallback_to_best_model) ... ok
+test_one_row_per_race_and_immutable_duplicate (test_daily_pre.PreTests.test_one_row_per_race_and_immutable_duplicate) ... ok
+test_parallel_publish_has_one_winner (test_daily_pre.PreTests.test_parallel_publish_has_one_winner) ... ok
+test_result_poison_never_reaches_predictor (test_daily_pre.PreTests.test_result_poison_never_reaches_predictor) ... ok
+test_result_stage_and_deadline_block (test_daily_pre.PreTests.test_result_stage_and_deadline_block) ... ok
+test_slow_inference_cannot_lock_after_start (test_daily_pre.PreTests.test_slow_inference_cannot_lock_after_start) ... ok
+test_tampered_lock_is_blocked_not_rebuilt (test_daily_pre.PreTests.test_tampered_lock_is_blocked_not_rebuilt) ... ok
+test_missing_approved_models_keeps_phase_b_closed_on_repeated_runs (test_daily_runner.RunnerTests.test_missing_approved_models_keeps_phase_b_closed_on_repeated_runs) ... ok
+test_file_boundary_is_not_end_of_stream (test_daily_source.SourceTests.test_file_boundary_is_not_end_of_stream) ... ok
+test_full_program_whitelists_fields (test_daily_source.SourceTests.test_full_program_whitelists_fields) ... ok
+test_incomplete_source_fails_closed (test_daily_source.SourceTests.test_incomplete_source_fails_closed) ... ok
+test_no_other_date_fallback (test_daily_source.SourceTests.test_no_other_date_fallback) ... ok
+test_read_error_fails_closed (test_daily_source.SourceTests.test_read_error_fails_closed) ... ok
+test_results_require_start_and_confirmed_rank (test_daily_source.SourceTests.test_results_require_start_and_confirmed_rank) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 0.393s
+
+OK

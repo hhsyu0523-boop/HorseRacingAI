@@ -1,0 +1,177 @@
+{
+  "training_executed": false,
+  "models_adopted": false,
+  "cutoff_exclusive": "2026-09-19",
+  "dependencies": {
+    "lightgbm": "4.7.0",
+    "xgboost": "3.2.0",
+    "numpy": "2.4.6"
+  },
+  "pre_features": [
+    "past_race_count",
+    "past_1_finish",
+    "past_2_finish",
+    "past_3_finish",
+    "past_4_finish",
+    "past_5_finish",
+    "average_finish",
+    "horse_win_rate",
+    "horse_top2_rate",
+    "horse_top3_rate",
+    "average_popularity",
+    "average_popularity_diff",
+    "average_last_3f",
+    "average_time_diff",
+    "jockey_race_count",
+    "jockey_win_rate",
+    "jockey_top2_rate",
+    "jockey_top3_rate",
+    "racecourse_code",
+    "distance",
+    "surface",
+    "direction",
+    "track_layout",
+    "going_good",
+    "going_slightly_heavy",
+    "going_heavy",
+    "going_bad",
+    "days_since_last_race",
+    "class_newcomer",
+    "class_maiden",
+    "class_1win",
+    "class_2win",
+    "class_3win",
+    "class_open",
+    "class_g3",
+    "class_g2",
+    "class_g1"
+  ],
+  "tables": {
+    "race_history": {
+      "columns": [
+        "race_key",
+        "horse_no",
+        "race_date",
+        "racecourse_code",
+        "racecourse",
+        "meeting_no",
+        "day_no",
+        "race_no",
+        "race_name",
+        "distance",
+        "surface",
+        "direction",
+        "track_layout",
+        "race_class",
+        "track_condition",
+        "weather",
+        "horse_name",
+        "jockey_name",
+        "popularity",
+        "odds",
+        "finish_position",
+        "race_time",
+        "last_3f",
+        "passing_order",
+        "body_weight",
+        "assigned_weight",
+        "win_payout",
+        "place_payout",
+        "margin_code"
+      ],
+      "summary": [
+        236442,
+        "2021-08-21",
+        "2026-08-16",
+        17319
+      ],
+      "rows_on_or_after_cutoff": 0,
+      "recorded_holdout_counts": [
+        46949,
+        3414
+      ]
+    },
+    "feature_history": {
+      "columns": [
+        "race_key",
+        "horse_no",
+        "race_date",
+        "horse_name",
+        "jockey_name",
+        "past_race_count",
+        "past_1_finish",
+        "past_2_finish",
+        "past_3_finish",
+        "past_4_finish",
+        "past_5_finish",
+        "average_finish",
+        "horse_win_rate",
+        "horse_top2_rate",
+        "horse_top3_rate",
+        "average_popularity",
+        "average_popularity_diff",
+        "average_last_3f",
+        "average_time_diff",
+        "jockey_race_count",
+        "jockey_win_rate",
+        "jockey_top2_rate",
+        "jockey_top3_rate",
+        "racecourse_code",
+        "distance",
+        "surface",
+        "direction",
+        "track_layout",
+        "going_good",
+        "going_slightly_heavy",
+        "going_heavy",
+        "going_bad",
+        "days_since_last_race",
+        "class_newcomer",
+        "class_maiden",
+        "class_1win",
+        "class_2win",
+        "class_3win",
+        "class_open",
+        "class_g3",
+        "class_g2",
+        "class_g1",
+        "target_finish_position"
+      ],
+      "summary": [
+        236442,
+        "2021-08-21",
+        "2026-08-16",
+        17319
+      ],
+      "rows_on_or_after_cutoff": 0,
+      "recorded_holdout_counts": [
+        46949,
+        3414
+      ]
+    }
+  },
+  "training_features_missing_from_pre": [],
+  "pre_features_missing_from_training": [],
+  "local_model_files": [
+    {
+      "name": "best_model.pkl",
+      "bytes": 554647,
+      "sha256": "ad2de50e09f520bf2c255d043d84923e8a6711e76cea3ef082a22804a8f5ae40"
+    },
+    {
+      "name": "reduced_model.pkl",
+      "bytes": 554647,
+      "sha256": "ad2de50e09f520bf2c255d043d84923e8a6711e76cea3ef082a22804a8f5ae40"
+    },
+    {
+      "name": "top3_model.pkl",
+      "bytes": 1736960,
+      "sha256": "f116f5e4fd1546e07298dea5c5cf433f2fbddaf3c010a23c617ba90d5301dd2c"
+    },
+    {
+      "name": "win_model.pkl",
+      "bytes": 1734309,
+      "sha256": "6c100090dca47da7bfc276c57afc15c816977116eaea20aeaf9529130b1ff589"
+    }
+  ]
+}

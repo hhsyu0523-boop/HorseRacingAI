@@ -1,0 +1,11 @@
+{
+  "scripts/daily_features.py": "132d70a17412692aeec45001d34e38a29b902675e8f717731650a0ec3bf86f56",
+  "scripts/daily_operation.py": "b53399fcdb0daf567eb28699f8f6bd09213eea93eb22e0a0dd7f231e3976f30e",
+  "scripts/daily_source.py": "8bd1ea24b9f10ce79981e646bd5b233926399506c97aca954dca1944e9a80478",
+  "tests/test_daily_final.py": "2842d30e328e60ef7a5632384404db52660608e875e4c7e78b3cc09ee18d72b8",
+  "tests/test_daily_pre.py": "ac4be0fc6b481057f3c30cb796f84c902593e4d233af4a16ab865c5dfc99bd6a",
+  "tests/test_daily_runner.py": "97dcb8124b1080236b0560e8b437eed27a35a168d98cace520369c903ae603ae",
+  "tests/test_daily_source.py": "b0ac227704bfa5408548b1ed13b21dcc438cc054f48251c84a1812fcd5865fd7",
+  "tests/verify_daily_phase_a.py": "5e883311846160674f1d0541d9cbf3b49eba72dfb5cb2fdf185f223760b4c896",
+  "automation/run_daily_phase_a.ps1": "f57ff0659a4081d8723f7142152d2b04cb2842ee6d0cb0021b98cded233954f8"
+}
