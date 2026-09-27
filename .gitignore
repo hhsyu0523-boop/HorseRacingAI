@@ -8,3 +8,4 @@ models/*.tmp
 reports/*.csv
 reports/*.html
 .vscode/settings.json
+.daily_runtime/

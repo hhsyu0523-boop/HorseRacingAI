@@ -1,0 +1,17 @@
+{
+  "issue": 2,
+  "branch": "codex/productionize-daily-20260919",
+  "phase_a_verified_live": false,
+  "stages": {
+    "1": "LIVE_ACQUISITION_SUCCESS_24_RACES_287_RUNNERS",
+    "2": "TEST_PASS_LIVE_BLOCKED_MISSING_MODELS_AND_DEADLINE",
+    "3": "TEST_PASS_LIVE_RESULT_FETCH_SUCCESS_2_RACES_RECONCILIATION_BLOCKED_NO_PRE",
+    "4": "NOT_STARTED_PHASE_A_GATE",
+    "5": "NOT_STARTED_PHASE_A_GATE",
+    "6": "NOT_STARTED_PHASE_A_GATE"
+  },
+  "tests_passed": 23,
+  "stable_main_changed": false,
+  "model_research_performed": false,
+  "runtime_pre_exists": false
+}

@@ -1,0 +1,639 @@
+{
+  "evidence_type": "SYNTHETIC_TESTS_NOT_LIVE_ACCEPTANCE",
+  "tests_run": 23,
+  "failures": 0,
+  "errors": 0,
+  "success": true,
+  "phase_a_verified_live": false,
+  "phase_b": "NOT_STARTED_PHASE_A_GATE",
+  "pre_unchanged": true,
+  "synthetic_pre": {
+    "payload": {
+      "schema_version": 1,
+      "kind": "PRE",
+      "date": "20260919",
+      "generated_at": "2026-09-19T08:01:00+09:00",
+      "result_information_used": false,
+      "source_sha256": "e50dc6efcd39a86650080e15d95b96f4efb4fd0a5f19858933de945713b45867",
+      "source_acquired_at": "2026-09-19T08:00:00+09:00",
+      "models": {
+        "fixture_only": true
+      },
+      "rows": [
+        {
+          "race_key": "202609190601",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190602",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190603",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190604",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190605",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190606",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190607",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190608",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190609",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190610",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190611",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        },
+        {
+          "race_key": "202609190612",
+          "scheduled_at": "2026-09-19T15:00:00+09:00",
+          "generated_at": "2026-09-19T08:01:00+09:00",
+          "result_information_used": false,
+          "top3": [
+            1,
+            2,
+            3
+          ],
+          "ranking": [
+            {
+              "horse_no": 1,
+              "win_probability": 0.5,
+              "place_probability": 0.8,
+              "ai_score": 90.0
+            },
+            {
+              "horse_no": 2,
+              "win_probability": 0.25,
+              "place_probability": 0.4,
+              "ai_score": 45.0
+            },
+            {
+              "horse_no": 3,
+              "win_probability": 0.16666666666666666,
+              "place_probability": 0.26666666666666666,
+              "ai_score": 30.0
+            }
+          ]
+        }
+      ]
+    },
+    "sha256": "3110ca43aa49816bac5c17222d890ddd50584ee07837075f2c079b49bcc16f7c"
+  },
+  "synthetic_final": {
+    "payload": {
+      "schema_version": 1,
+      "kind": "FINAL",
+      "date": "20260919",
+      "pre_sha256": "3110ca43aa49816bac5c17222d890ddd50584ee07837075f2c079b49bcc16f7c",
+      "status": "SUCCESS",
+      "reason": "COMPLETE",
+      "pending": [],
+      "metrics": {
+        "top1": {
+          "hits": 12,
+          "n": 12,
+          "rate": 1.0
+        },
+        "winner_in_top3": {
+          "hits": 12,
+          "n": 12,
+          "rate": 1.0
+        },
+        "exact12": {
+          "hits": 12,
+          "n": 12,
+          "rate": 1.0
+        },
+        "exact123": {
+          "hits": 12,
+          "n": 12,
+          "rate": 1.0
+        }
+      },
+      "rows": [
+        {
+          "race_key": "202609190601",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190602",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190603",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190604",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190605",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190606",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190607",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190608",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190609",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190610",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190611",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        },
+        {
+          "race_key": "202609190612",
+          "actual": [
+            1,
+            2,
+            3
+          ],
+          "predicted": [
+            1,
+            2,
+            3
+          ],
+          "top1": true,
+          "winner_in_top3": true,
+          "exact12": true,
+          "exact123": true
+        }
+      ]
+    },
+    "sha256": "86423d87c5f8845cf57b29f5c5e5174b68e6ca9d42b3dcac89122b84051ee3d4"
+  }
+}
